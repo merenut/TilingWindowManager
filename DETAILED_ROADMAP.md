@@ -8,7 +8,20 @@
 **Estimated Timeline:** 6-9 months to production v1.0  
 **Based on:** Hyprland + Waybar feature analysis
 
-> **Note:** This document contains example code with `todo!()` macros and placeholder implementations. These are intentional examples to illustrate the structure and should be replaced with actual implementations during development.
+---
+
+## ⚠️ Important Note About Example Code
+
+**This document contains example code with `todo!()` macros and placeholder implementations.**
+
+These are **intentional examples** designed to:
+- Illustrate the overall code structure and architecture
+- Show the function signatures and types needed
+- Demonstrate the flow and organization of the implementation
+
+**All `todo!()` macros and placeholder comments must be replaced with actual implementations during development.** They serve as markers indicating where additional implementation work is required.
+
+---
 
 ---
 
@@ -350,8 +363,9 @@ impl WindowHandle {
     }
     
     pub fn get_process_name(&self) -> Result<String> {
-        // Implementation to get process name
+        // TODO: Implementation to get process name
         // Uses GetWindowThreadProcessId + OpenProcess + GetModuleFileNameExW
+        // Note: This is a placeholder - see "Important Note About Example Code" at top
         todo!("Implement process name retrieval")
     }
     
@@ -864,8 +878,9 @@ impl DwindleLayout {
         tree: &mut TreeNode,
         window: &WindowHandle,
     ) -> anyhow::Result<bool> {
-        // Recursive search and removal
+        // TODO: Recursive search and removal
         // Returns true if window was found and removed
+        // Note: Placeholder implementation - see top of document
         todo!("Implement window removal from tree")
     }
 }
@@ -1176,33 +1191,33 @@ impl CommandExecutor {
     }
     
     fn close_active_window(&mut self) -> Result<()> {
-        // Get active window and close it
-        todo!()
+        // TODO: Get active window and close it
+        todo!("Implementation needed - see example code disclaimer")
     }
     
     fn toggle_floating(&mut self) -> Result<()> {
-        // Toggle floating state of active window
-        todo!()
+        // TODO: Toggle floating state of active window
+        todo!("Implementation needed - see example code disclaimer")
     }
     
     fn toggle_fullscreen(&mut self) -> Result<()> {
-        // Toggle fullscreen state of active window
-        todo!()
+        // TODO: Toggle fullscreen state of active window
+        todo!("Implementation needed - see example code disclaimer")
     }
     
     fn focus_direction(&mut self, direction: Direction) -> Result<()> {
-        // Focus window in the given direction
-        todo!()
+        // TODO: Focus window in the given direction
+        todo!("Implementation needed - see example code disclaimer")
     }
     
     fn switch_workspace(&mut self, id: usize) -> Result<()> {
-        // Switch to workspace
-        todo!()
+        // TODO: Switch to workspace
+        todo!("Implementation needed - see example code disclaimer")
     }
     
     fn move_to_workspace(&mut self, id: usize) -> Result<()> {
-        // Move active window to workspace
-        todo!()
+        // TODO: Move active window to workspace
+        todo!("Implementation needed - see example code disclaimer")
     }
 }
 
@@ -1274,13 +1289,14 @@ impl VirtualDesktopManager {
     }
     
     pub fn get_desktop_count(&self) -> Result<usize> {
-        // Use IVirtualDesktopManagerInternal to get count
+        // TODO: Use IVirtualDesktopManagerInternal to get count
         // Implementation requires accessing internal Windows APIs
+        // Note: Placeholder - requires reverse-engineered COM interfaces
         todo!("Implement using VirtualDesktop COM APIs")
     }
     
     pub fn switch_desktop(&self, index: usize) -> Result<()> {
-        // Switch to desktop by index
+        // TODO: Switch to desktop by index
         todo!("Implement desktop switching")
     }
     
@@ -3069,7 +3085,8 @@ impl IpcClient {
         
         let _ = self.send_request(request).await?;
         
-        // Return event stream
+        // TODO: Return event stream for receiving asynchronous events
+        // Note: Placeholder - full async stream implementation needed
         todo!("Implement event stream")
     }
     
