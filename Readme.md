@@ -73,14 +73,14 @@ Research document analyzing Hyprland and Waybar features for Windows implementat
 
 | Phase | Duration | Focus | Status |
 |-------|----------|-------|--------|
-| **Phase 1** | Weeks 1-3 | Project Foundation | 📋 Planned |
-| **Phase 2** | Weeks 4-8 | Core Window Management | �� Planned |
-| **Phase 3** | Weeks 9-12 | Workspace System | 📋 Planned |
-| **Phase 4** | Weeks 13-16 | Configuration & Rules | �� Planned |
-| **Phase 5** | Weeks 17-20 | IPC & CLI | 📋 Planned |
-| **Phase 6** | Weeks 21-26 | Status Bar | 📋 Planned |
-| **Phase 7** | Weeks 27-32 | Polish & Features | 📋 Planned |
-| **Phase 8** | Weeks 33-36 | Production Ready | 📋 Planned |
+| **Phase 1** | Weeks 1-3 | Project Foundation | Planned |
+| **Phase 2** | Weeks 4-8 | Core Window Management | Planned |
+| **Phase 3** | Weeks 9-12 | Workspace System | Planned |
+| **Phase 4** | Weeks 13-16 | Configuration & Rules | Planned |
+| **Phase 5** | Weeks 17-20 | IPC & CLI | Planned |
+| **Phase 6** | Weeks 21-26 | Status Bar | Planned |
+| **Phase 7** | Weeks 27-32 | Polish & Features | Planned |
+| **Phase 8** | Weeks 33-36 | Production Ready | Planned |
 
 **Target v1.0 Release:** 6-9 months from start
 

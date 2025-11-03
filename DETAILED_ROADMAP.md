@@ -8,6 +8,8 @@
 **Estimated Timeline:** 6-9 months to production v1.0  
 **Based on:** Hyprland + Waybar feature analysis
 
+> **Note:** This document contains example code with `todo!()` macros and placeholder implementations. These are intentional examples to illustrate the structure and should be replaced with actual implementations during development.
+
 ---
 
 ## Table of Contents
@@ -588,7 +590,7 @@ impl WindowManager {
     }
     
     pub fn tile_workspace(&mut self, workspace_id: usize) -> anyhow::Result<()> {
-        if let Some(tree) = self.trees.get(& workspace_id) {
+        if let Some(tree) = self.trees.get(&workspace_id) {
             tree.apply_geometry()?;
         }
         Ok(())

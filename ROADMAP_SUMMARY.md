@@ -286,9 +286,9 @@ After v1.0 release, contributions welcome in:
 
 - **[DETAILED_ROADMAP.md](DETAILED_ROADMAP.md)** - Complete technical roadmap with code examples
 - **[HYPRLAND_WAYBAR_RESEARCH.md](HYPRLAND_WAYBAR_RESEARCH.md)** - Research on Hyprland and Waybar features
-- **README.md** - Project overview (to be created)
-- **USER_GUIDE.md** - User documentation (Phase 8)
-- **API_REFERENCE.md** - IPC/CLI documentation (Phase 8)
+- **[Readme.md](Readme.md)** - Project overview
+- **USER_GUIDE.md** - User documentation (to be created in Phase 8)
+- **API_REFERENCE.md** - IPC/CLI documentation (to be created in Phase 8)
 
 ---
 
