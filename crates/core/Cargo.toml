@@ -1,0 +1,17 @@
+[package]
+name = "tiling-wm-core"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+windows = { workspace = true }
+tokio = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
+toml = { workspace = true }
+anyhow = { workspace = true }
+thiserror = { workspace = true }
+tracing = { workspace = true }
+tracing-subscriber = { workspace = true }
+notify = "6.1"
+chrono = "0.4"
