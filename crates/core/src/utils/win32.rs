@@ -37,8 +37,13 @@
 //! ```
 
 use windows::{
-    Win32::Foundation::*,
-    Win32::UI::WindowsAndMessaging::*,
+    Win32::Foundation::{BOOL, HWND, LPARAM, RECT, WPARAM},
+    Win32::UI::WindowsAndMessaging::{
+        EnumWindows, GetClassNameW, GetForegroundWindow, GetParent, GetWindow, GetWindowRect,
+        GetWindowTextLengthW, GetWindowTextW, GetWindowThreadProcessId, IsIconic,
+        IsWindowVisible, IsZoomed, PostMessageW, SetForegroundWindow, ShowWindow,
+        GW_OWNER, SHOW_WINDOW_CMD, SW_HIDE, SW_MAXIMIZE, SW_MINIMIZE, SW_RESTORE, WM_CLOSE,
+    },
 };
 
 /// A wrapper around Windows HWND providing safe access to window operations.
@@ -355,6 +360,12 @@ impl WindowHandle {
     /// # Returns
     /// 
     /// `true` if the window appears to be a standard application window.
+    /// 
+    /// # Notes
+    /// 
+    /// This is a heuristic filter. Some legitimate application windows may be filtered out
+    /// if they temporarily have no title or fail the title retrieval. Applications needing
+    /// more precise filtering should use additional criteria.
     pub fn is_app_window(&self) -> bool {
         if !self.is_visible() {
             return false;
@@ -365,14 +376,12 @@ impl WindowHandle {
             return false;
         }
 
-        // Window should have a title (most app windows do)
-        if let Ok(title) = self.get_title() {
-            if title.is_empty() {
-                return false;
-            }
+        // Window should have a title - most app windows do, though some may temporarily have none
+        // If we can't get the title, err on the side of caution and exclude it
+        match self.get_title() {
+            Ok(title) => !title.is_empty(),
+            Err(_) => false,
         }
-
-        true
     }
 }
 
@@ -426,6 +435,11 @@ pub fn enumerate_windows() -> anyhow::Result<Vec<WindowHandle>> {
 /// - The pointer is created from a valid mutable reference in `enumerate_windows`
 /// - The lifetime of the reference is controlled by the `enumerate_windows` function
 /// - Windows guarantees that the callback will not be called after `EnumWindows` returns
+///
+/// ## Safety Requirements for Callers
+/// 
+/// This function must only be called by Windows' `EnumWindows` with an LPARAM
+/// that points to a valid `Vec<WindowHandle>` for the duration of enumeration.
 unsafe extern "system" fn enum_windows_callback(hwnd: HWND, lparam: LPARAM) -> BOOL {
     let windows = &mut *(lparam.0 as *mut Vec<WindowHandle>);
     windows.push(WindowHandle::from_hwnd(hwnd));
