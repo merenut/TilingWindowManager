@@ -1253,7 +1253,7 @@ Waybar needs data
 **Status:** ✅ Named pipes or TCP
 
 **Windows implementation:**
-- Named pipes: `\.\pipe	iling-wm`
+- Named pipes: `\\.\pipe\tiling-wm`
 - TCP sockets on localhost
 - JSON-based protocol (same as Hyprland)
 
