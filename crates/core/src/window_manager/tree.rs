@@ -606,11 +606,15 @@ impl TreeNode {
         
         for (hwnd, rect) in self.collect() {
             // Apply gaps to the rectangle
-            let final_rect = if gaps_in > 0 || gaps_out > 0 {
-                rect.apply_gaps(gaps_in, gaps_out)
-            } else {
-                rect
-            };
+            // gaps_in creates space between windows (apply half gap on each side)
+            // gaps_out should already be baked into the tree's root rectangle
+            let half_gap = gaps_in / 2;
+            let final_rect = Rect::new(
+                rect.x + half_gap,
+                rect.y + half_gap,
+                rect.width - gaps_in,
+                rect.height - gaps_in,
+            );
             
             // Position and size the window
             unsafe {
