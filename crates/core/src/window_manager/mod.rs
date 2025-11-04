@@ -128,10 +128,19 @@ impl WindowManager {
         // Create initial workspace trees for the first few workspaces
         // Use the first monitor's work area for initial tree rectangles
         if let Some(monitor) = self.monitors.first() {
+            // Apply outer gaps to work area
+            let gaps_out = 10;
+            let work_area_with_gaps = Rect::new(
+                monitor.work_area.x + gaps_out,
+                monitor.work_area.y + gaps_out,
+                monitor.work_area.width - 2 * gaps_out,
+                monitor.work_area.height - 2 * gaps_out,
+            );
+            
             for workspace_id in 1..=10 {
                 // We don't create trees yet - they'll be created when windows are added
                 // Just reserve the workspace IDs
-                self.trees.insert(workspace_id, TreeNode::new_leaf(HWND(0), monitor.work_area));
+                self.trees.insert(workspace_id, TreeNode::new_leaf(HWND(0), work_area_with_gaps));
             }
         }
 
@@ -167,12 +176,16 @@ impl WindowManager {
             // - We maintain exclusive access to self.monitors during the enumeration
             let monitors_ptr = &mut self.monitors as *mut Vec<MonitorInfo>;
             
-            EnumDisplayMonitors(
+            let result = EnumDisplayMonitors(
                 HDC(0),
                 None,
                 Some(enum_monitors_callback),
                 windows::Win32::Foundation::LPARAM(monitors_ptr as isize),
-            )?;
+            );
+            
+            if !result.as_bool() {
+                return Err(anyhow::anyhow!("Failed to enumerate display monitors"));
+            }
         }
 
         #[cfg(not(target_os = "windows"))]
@@ -272,22 +285,31 @@ impl WindowManager {
         // Get or create the tree for the active workspace
         let workspace_id = self.active_workspace;
         let work_area = self.get_primary_monitor_work_area();
+        
+        // Apply outer gaps to the work area to create spacing from screen edges
+        let gaps_out = 10;
+        let work_area_with_gaps = Rect::new(
+            work_area.x + gaps_out,
+            work_area.y + gaps_out,
+            work_area.width - 2 * gaps_out,
+            work_area.height - 2 * gaps_out,
+        );
 
         if let Some(tree) = self.trees.get(&workspace_id) {
             // Check if this is an empty placeholder tree (HWND(0))
             if tree.hwnd() == Some(HWND(0)) {
                 // Replace with the new window
-                let new_tree = TreeNode::new_leaf(hwnd, work_area);
+                let new_tree = TreeNode::new_leaf(hwnd, work_area_with_gaps);
                 self.trees.insert(workspace_id, new_tree);
             } else {
-                // Insert into existing tree
+                // Insert into existing tree (tree already has gaps applied to root)
                 let tree = self.trees.remove(&workspace_id).unwrap();
                 let new_tree = tree.insert(hwnd, Split::Horizontal);
                 self.trees.insert(workspace_id, new_tree);
             }
         } else {
             // Create new tree for this workspace
-            let new_tree = TreeNode::new_leaf(hwnd, work_area);
+            let new_tree = TreeNode::new_leaf(hwnd, work_area_with_gaps);
             self.trees.insert(workspace_id, new_tree);
         }
 

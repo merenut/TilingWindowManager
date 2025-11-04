@@ -401,18 +401,19 @@ impl TreeNode {
     /// root = root.insert(HWND(2 as _), Split::Horizontal);
     /// ```
     pub fn insert(self, hwnd: HWND, split: Split) -> Self {
+        let rect = self.rect; // Save the rectangle
         match self.node_type {
             NodeType::Leaf { hwnd: old_hwnd } => {
                 // Split this leaf into a container with two leaves
                 let (left_rect, right_rect) = match split {
-                    Split::Horizontal => self.rect.split_horizontal(0.5),
-                    Split::Vertical => self.rect.split_vertical(0.5),
+                    Split::Horizontal => rect.split_horizontal(0.5),
+                    Split::Vertical => rect.split_vertical(0.5),
                 };
                 
                 let left = TreeNode::new_leaf(old_hwnd, left_rect);
                 let right = TreeNode::new_leaf(hwnd, right_rect);
                 
-                TreeNode::new_container(split, left, right, self.rect, 0.5)
+                TreeNode::new_container(split, left, right, rect, 0.5)
             }
             NodeType::Container {
                 split: current_split,
@@ -420,9 +421,11 @@ impl TreeNode {
                 right,
                 ratio,
             } => {
-                // Insert into the right child
+                // Insert into the right child and recalculate all rectangles
                 let new_right = right.insert(hwnd, split);
-                TreeNode::new_container(current_split, *left, new_right, self.rect, ratio)
+                let new_tree = TreeNode::new_container(current_split, *left, new_right, rect, ratio);
+                // Recalculate all rectangles in the tree to ensure proper layout
+                new_tree.with_rect(rect)
             }
         }
     }
@@ -603,11 +606,15 @@ impl TreeNode {
         
         for (hwnd, rect) in self.collect() {
             // Apply gaps to the rectangle
-            let final_rect = if gaps_in > 0 || gaps_out > 0 {
-                rect.apply_gaps(gaps_in, gaps_out)
-            } else {
-                rect
-            };
+            // gaps_in creates space between windows (apply half gap on each side)
+            // gaps_out should already be baked into the tree's root rectangle
+            let half_gap = gaps_in / 2;
+            let final_rect = Rect::new(
+                rect.x + half_gap,
+                rect.y + half_gap,
+                rect.width - gaps_in,
+                rect.height - gaps_in,
+            );
             
             // Position and size the window
             unsafe {
