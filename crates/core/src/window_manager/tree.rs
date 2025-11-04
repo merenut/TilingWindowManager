@@ -392,11 +392,12 @@ impl TreeNode {
                 split,
                 left,
                 right,
+                ratio,
             } => {
-                // Container nodes need to update children proportionally
+                // Container nodes need to update children using their split ratio
                 let (left_rect, right_rect) = match split {
-                    Split::Horizontal => new_rect.split_horizontal(0.5),
-                    Split::Vertical => new_rect.split_vertical(0.5),
+                    Split::Horizontal => new_rect.split_horizontal(*ratio),
+                    Split::Vertical => new_rect.split_vertical(*ratio),
                 };
                 left.set_rect(left_rect);
                 right.set_rect(right_rect);
