@@ -222,7 +222,7 @@ fn main() {
     println!("Workspace Assignments:");
     for ws in &config.workspace_rules {
         let default_marker = if ws.default { " (default)" } else { "" };
-        let name = ws.name.as_ref().map(|n| n.as_str()).unwrap_or("unnamed");
+        let name = ws.name.as_deref().unwrap_or("unnamed");
         println!("  Workspace {}: \"{}\" on monitor {}{}", 
                  ws.id, name, ws.monitor, default_marker);
     }

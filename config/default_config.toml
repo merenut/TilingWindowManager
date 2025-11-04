@@ -225,7 +225,7 @@ name = "Media"
 [[workspace_rules]]
 id = 5
 monitor = 1  # Second monitor if available
-default = true
+default = true  # Default workspace for monitor 1 (different monitor than workspace 1)
 name = "Comm"
 
 # ========================================
