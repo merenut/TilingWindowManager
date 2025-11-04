@@ -969,52 +969,59 @@ impl WorkspaceManager {
             return Ok(());
         }
         
-        let mut state = crate::workspace::persistence::SessionState::default();
-        state.active_workspace = self.active_workspace;
+        let mut state = crate::workspace::persistence::SessionState {
+            active_workspace: self.active_workspace,
+            ..Default::default()
+        };
         
         for workspace in self.workspaces.values() {
             let ws_state = crate::workspace::persistence::WorkspaceState {
                 id: workspace.id,
                 name: workspace.name.clone(),
                 monitor: workspace.monitor,
-                windows: workspace.windows
-                    .iter()
-                    .filter_map(|&hwnd| {
-                        #[cfg(target_os = "windows")]
-                        {
-                            let handle = crate::utils::win32::WindowHandle::from_hwnd(
-                                windows::Win32::Foundation::HWND(hwnd)
-                            );
-                            
-                            if let (Ok(title), Ok(class), Ok(process)) = (
-                                handle.get_title(),
-                                handle.get_class_name(),
-                                handle.get_process_name(),
-                            ) {
-                                Some(crate::workspace::persistence::WindowState {
-                                    hwnd: format!("{}", hwnd),
-                                    process_name: process,
-                                    title,
-                                    class_name: class,
-                                    workspace: workspace.id,
-                                })
-                            } else {
-                                None
-                            }
-                        }
-                        #[cfg(not(target_os = "windows"))]
-                        {
-                            // On non-Windows platforms, store minimal window info
-                            Some(crate::workspace::persistence::WindowState {
+                windows: {
+                    #[cfg(target_os = "windows")]
+                    {
+                        workspace.windows
+                            .iter()
+                            .filter_map(|&hwnd| {
+                                let handle = crate::utils::win32::WindowHandle::from_hwnd(
+                                    windows::Win32::Foundation::HWND(hwnd)
+                                );
+                                
+                                if let (Ok(title), Ok(class), Ok(process)) = (
+                                    handle.get_title(),
+                                    handle.get_class_name(),
+                                    handle.get_process_name(),
+                                ) {
+                                    Some(crate::workspace::persistence::WindowState {
+                                        hwnd: format!("{}", hwnd),
+                                        process_name: process,
+                                        title,
+                                        class_name: class,
+                                        workspace: workspace.id,
+                                    })
+                                } else {
+                                    None
+                                }
+                            })
+                            .collect()
+                    }
+                    #[cfg(not(target_os = "windows"))]
+                    {
+                        // On non-Windows platforms, store minimal window info
+                        workspace.windows
+                            .iter()
+                            .map(|&hwnd| crate::workspace::persistence::WindowState {
                                 hwnd: format!("{}", hwnd),
                                 process_name: String::new(),
                                 title: String::new(),
                                 class_name: String::new(),
                                 workspace: workspace.id,
                             })
-                        }
-                    })
-                    .collect(),
+                            .collect()
+                    }
+                },
                 virtual_desktop_id: workspace.virtual_desktop_id
                     .map(|guid| format!("{:?}", guid)),
             };
