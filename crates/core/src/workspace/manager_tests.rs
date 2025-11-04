@@ -1523,4 +1523,199 @@ mod tests {
         assert_eq!(ws.windows.len(), 1);
         assert_eq!(manager.window_count(), 1);
     }
+
+    // Test monitor integration
+
+    #[test]
+    fn test_assign_workspaces_to_monitors() {
+        use crate::window_manager::monitor::{MonitorInfo, MonitorManager};
+
+        let config = WorkspaceConfig::default();
+        let mut workspace_manager = WorkspaceManager::new(config);
+
+        let rect = Rect::new(0, 0, 1920, 1080);
+        let monitor_areas = vec![(0, rect)];
+        workspace_manager.initialize(&monitor_areas).unwrap();
+
+        let mut monitor_manager = MonitorManager::new();
+        let monitor = MonitorInfo::new(0, 0, "Primary".to_string(), rect, rect, 1.0);
+        monitor_manager.add_monitor(monitor);
+
+        // Assign workspaces to monitors
+        workspace_manager
+            .assign_workspaces_to_monitors(&mut monitor_manager)
+            .unwrap();
+
+        // Check that monitor has workspaces assigned
+        let monitor = monitor_manager.get_by_id(0).unwrap();
+        assert_eq!(monitor.workspaces.len(), 10); // Default count
+        assert_eq!(monitor.active_workspace, Some(1)); // First workspace is active
+    }
+
+    #[test]
+    fn test_get_active_workspace_for_monitor() {
+        let config = WorkspaceConfig::default();
+        let mut manager = WorkspaceManager::new(config);
+
+        let rect = Rect::new(0, 0, 1920, 1080);
+        let monitor_areas = vec![(0, rect)];
+        manager.initialize(&monitor_areas).unwrap();
+
+        // First workspace on monitor 0 should be active
+        let active = manager.get_active_workspace_for_monitor(0);
+        assert_eq!(active, Some(1));
+
+        // Switch to workspace 2
+        manager.switch_to(2).unwrap();
+        let active = manager.get_active_workspace_for_monitor(0);
+        assert_eq!(active, Some(2));
+    }
+
+    #[test]
+    fn test_get_active_workspace_for_monitor_no_active() {
+        let config = WorkspaceConfig::default();
+        let manager = WorkspaceManager::new(config);
+
+        // No workspaces initialized, so no active workspace
+        let active = manager.get_active_workspace_for_monitor(0);
+        assert_eq!(active, None);
+    }
+
+    #[test]
+    fn test_switch_workspace_on_monitor() {
+        let config = WorkspaceConfig::default();
+        let mut manager = WorkspaceManager::new(config);
+
+        let rect = Rect::new(0, 0, 1920, 1080);
+        let monitor_areas = vec![(0, rect)];
+        manager.initialize(&monitor_areas).unwrap();
+
+        // Workspace 1 should be active initially
+        let ws1 = manager.get_workspace(1).unwrap();
+        assert!(ws1.visible);
+
+        // Switch to workspace 2 on monitor 0
+        manager.switch_workspace_on_monitor(0, 2).unwrap();
+
+        // Check workspace 1 is now inactive
+        let ws1 = manager.get_workspace(1).unwrap();
+        assert!(!ws1.visible);
+
+        // Check workspace 2 is now active
+        let ws2 = manager.get_workspace(2).unwrap();
+        assert!(ws2.visible);
+    }
+
+    #[test]
+    fn test_switch_workspace_on_monitor_wrong_monitor() {
+        let config = WorkspaceConfig {
+            default_count: 2,
+            names: vec!["A".to_string(), "B".to_string()],
+            persist_state: true,
+            create_on_demand: false,
+            use_virtual_desktops: false,
+        };
+        let mut manager = WorkspaceManager::new(config);
+
+        let rect1 = Rect::new(0, 0, 1920, 1080);
+        let rect2 = Rect::new(1920, 0, 1920, 1080);
+        let monitor_areas = vec![(0, rect1), (1, rect2)];
+        manager.initialize(&monitor_areas).unwrap();
+
+        // Workspace 1 is on monitor 0, workspace 3 is on monitor 1
+        // Try to switch workspace 3 on monitor 0 (should fail)
+        let result = manager.switch_workspace_on_monitor(0, 3);
+        assert!(result.is_err());
+        assert!(result
+            .unwrap_err()
+            .to_string()
+            .contains("is on monitor 1, not monitor 0"));
+    }
+
+    #[test]
+    fn test_switch_workspace_on_monitor_nonexistent() {
+        let config = WorkspaceConfig::default();
+        let mut manager = WorkspaceManager::new(config);
+
+        let rect = Rect::new(0, 0, 1920, 1080);
+        let monitor_areas = vec![(0, rect)];
+        manager.initialize(&monitor_areas).unwrap();
+
+        // Try to switch to non-existent workspace
+        let result = manager.switch_workspace_on_monitor(0, 999);
+        assert!(result.is_err());
+        assert!(result.unwrap_err().to_string().contains("does not exist"));
+    }
+
+    #[test]
+    fn test_handle_monitor_change() {
+        use crate::window_manager::monitor::{MonitorInfo, MonitorManager};
+
+        let config = WorkspaceConfig {
+            default_count: 2,
+            names: vec!["A".to_string(), "B".to_string()],
+            persist_state: true,
+            create_on_demand: false,
+            use_virtual_desktops: false,
+        };
+        let mut manager = WorkspaceManager::new(config);
+
+        // Initialize with 2 monitors
+        let rect1 = Rect::new(0, 0, 1920, 1080);
+        let rect2 = Rect::new(1920, 0, 1920, 1080);
+        let monitor_areas = vec![(0, rect1), (1, rect2)];
+        manager.initialize(&monitor_areas).unwrap();
+
+        // Verify workspaces were created on different monitors
+        let ws1 = manager.get_workspace(1).unwrap();
+        assert_eq!(ws1.monitor, 0);
+        let ws3 = manager.get_workspace(3).unwrap();
+        assert_eq!(ws3.monitor, 1);
+
+        // Create a new monitor manager with only 1 monitor
+        let mut monitor_manager = MonitorManager::new();
+        let monitor = MonitorInfo::new(0, 0, "Primary".to_string(), rect1, rect1, 1.0);
+        monitor_manager.add_monitor(monitor);
+
+        // Handle monitor change
+        manager.handle_monitor_change(&monitor_manager).unwrap();
+
+        // All workspaces that were on monitor 1 should now be on monitor 0
+        let ws3_after = manager.get_workspace(3).unwrap();
+        assert_eq!(ws3_after.monitor, 0);
+    }
+
+    #[test]
+    fn test_switch_workspace_per_monitor_independent() {
+        let config = WorkspaceConfig {
+            default_count: 2,
+            names: vec!["A".to_string(), "B".to_string()],
+            persist_state: true,
+            create_on_demand: false,
+            use_virtual_desktops: false,
+        };
+        let mut manager = WorkspaceManager::new(config);
+
+        let rect1 = Rect::new(0, 0, 1920, 1080);
+        let rect2 = Rect::new(1920, 0, 1920, 1080);
+        let monitor_areas = vec![(0, rect1), (1, rect2)];
+        manager.initialize(&monitor_areas).unwrap();
+
+        // Workspace 1 on monitor 0 should be active
+        assert_eq!(manager.get_active_workspace_for_monitor(0), Some(1));
+
+        // Workspace 3 on monitor 1 should not be active
+        let ws3 = manager.get_workspace(3).unwrap();
+        assert!(!ws3.visible);
+
+        // Switch workspace on monitor 0 to workspace 2
+        manager.switch_workspace_on_monitor(0, 2).unwrap();
+
+        // Check that workspace 2 is now active on monitor 0
+        assert_eq!(manager.get_active_workspace_for_monitor(0), Some(2));
+
+        // Check that workspace 3 on monitor 1 is still inactive
+        let ws3 = manager.get_workspace(3).unwrap();
+        assert!(!ws3.visible);
+    }
 }
