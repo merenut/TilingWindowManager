@@ -1046,4 +1046,481 @@ mod tests {
         manager.switch_to_next().unwrap();
         assert_eq!(manager.active_workspace(), 1);
     }
+
+    // Test add_window_to_workspace
+
+    #[test]
+    fn test_workspace_manager_add_window_to_workspace() {
+        let config = WorkspaceConfig::default();
+        let mut manager = WorkspaceManager::new(config);
+
+        let rect = Rect::new(0, 0, 1920, 1080);
+        let monitor_areas = vec![(0, rect)];
+        manager.initialize(&monitor_areas).unwrap();
+
+        // Add a window to workspace 1
+        let hwnd = 12345;
+        manager.add_window_to_workspace(hwnd, 1).unwrap();
+
+        // Check window is in workspace
+        let ws = manager.get_workspace(1).unwrap();
+        assert!(ws.windows.contains(&hwnd));
+
+        // Check window-to-workspace mapping
+        assert_eq!(manager.get_window_workspace(hwnd), Some(1));
+        assert_eq!(manager.window_count(), 1);
+    }
+
+    #[test]
+    fn test_workspace_manager_add_window_to_nonexistent_workspace() {
+        let config = WorkspaceConfig::default();
+        let mut manager = WorkspaceManager::new(config);
+
+        let rect = Rect::new(0, 0, 1920, 1080);
+        let monitor_areas = vec![(0, rect)];
+        manager.initialize(&monitor_areas).unwrap();
+
+        let hwnd = 12345;
+        let result = manager.add_window_to_workspace(hwnd, 999);
+        assert!(result.is_err());
+        assert!(result.unwrap_err().to_string().contains("does not exist"));
+    }
+
+    #[test]
+    fn test_workspace_manager_add_multiple_windows_to_workspace() {
+        let config = WorkspaceConfig::default();
+        let mut manager = WorkspaceManager::new(config);
+
+        let rect = Rect::new(0, 0, 1920, 1080);
+        let monitor_areas = vec![(0, rect)];
+        manager.initialize(&monitor_areas).unwrap();
+
+        // Add multiple windows to workspace 1
+        manager.add_window_to_workspace(100, 1).unwrap();
+        manager.add_window_to_workspace(200, 1).unwrap();
+        manager.add_window_to_workspace(300, 1).unwrap();
+
+        let ws = manager.get_workspace(1).unwrap();
+        assert_eq!(ws.windows.len(), 3);
+        assert!(ws.windows.contains(&100));
+        assert!(ws.windows.contains(&200));
+        assert!(ws.windows.contains(&300));
+        assert_eq!(manager.window_count(), 3);
+    }
+
+    #[test]
+    fn test_workspace_manager_add_windows_to_different_workspaces() {
+        let config = WorkspaceConfig::default();
+        let mut manager = WorkspaceManager::new(config);
+
+        let rect = Rect::new(0, 0, 1920, 1080);
+        let monitor_areas = vec![(0, rect)];
+        manager.initialize(&monitor_areas).unwrap();
+
+        // Add windows to different workspaces
+        manager.add_window_to_workspace(100, 1).unwrap();
+        manager.add_window_to_workspace(200, 2).unwrap();
+        manager.add_window_to_workspace(300, 3).unwrap();
+
+        let ws1 = manager.get_workspace(1).unwrap();
+        assert_eq!(ws1.windows.len(), 1);
+        assert!(ws1.windows.contains(&100));
+
+        let ws2 = manager.get_workspace(2).unwrap();
+        assert_eq!(ws2.windows.len(), 1);
+        assert!(ws2.windows.contains(&200));
+
+        let ws3 = manager.get_workspace(3).unwrap();
+        assert_eq!(ws3.windows.len(), 1);
+        assert!(ws3.windows.contains(&300));
+
+        assert_eq!(manager.window_count(), 3);
+    }
+
+    // Test remove_window
+
+    #[test]
+    fn test_workspace_manager_remove_window() {
+        let config = WorkspaceConfig::default();
+        let mut manager = WorkspaceManager::new(config);
+
+        let rect = Rect::new(0, 0, 1920, 1080);
+        let monitor_areas = vec![(0, rect)];
+        manager.initialize(&monitor_areas).unwrap();
+
+        let hwnd = 12345;
+        manager.add_window_to_workspace(hwnd, 1).unwrap();
+
+        // Remove the window
+        let result = manager.remove_window(hwnd).unwrap();
+        assert_eq!(result, Some(1));
+
+        // Check window is no longer in workspace
+        let ws = manager.get_workspace(1).unwrap();
+        assert!(!ws.windows.contains(&hwnd));
+
+        // Check window-to-workspace mapping is cleared
+        assert_eq!(manager.get_window_workspace(hwnd), None);
+        assert_eq!(manager.window_count(), 0);
+    }
+
+    #[test]
+    fn test_workspace_manager_remove_nonexistent_window() {
+        let config = WorkspaceConfig::default();
+        let mut manager = WorkspaceManager::new(config);
+
+        let rect = Rect::new(0, 0, 1920, 1080);
+        let monitor_areas = vec![(0, rect)];
+        manager.initialize(&monitor_areas).unwrap();
+
+        // Try to remove a window that was never added
+        let result = manager.remove_window(99999).unwrap();
+        assert_eq!(result, None);
+    }
+
+    #[test]
+    fn test_workspace_manager_remove_window_from_multiple() {
+        let config = WorkspaceConfig::default();
+        let mut manager = WorkspaceManager::new(config);
+
+        let rect = Rect::new(0, 0, 1920, 1080);
+        let monitor_areas = vec![(0, rect)];
+        manager.initialize(&monitor_areas).unwrap();
+
+        // Add multiple windows
+        manager.add_window_to_workspace(100, 1).unwrap();
+        manager.add_window_to_workspace(200, 1).unwrap();
+        manager.add_window_to_workspace(300, 1).unwrap();
+
+        // Remove middle window
+        let result = manager.remove_window(200).unwrap();
+        assert_eq!(result, Some(1));
+
+        let ws = manager.get_workspace(1).unwrap();
+        assert_eq!(ws.windows.len(), 2);
+        assert!(ws.windows.contains(&100));
+        assert!(!ws.windows.contains(&200));
+        assert!(ws.windows.contains(&300));
+        assert_eq!(manager.window_count(), 2);
+    }
+
+    #[test]
+    fn test_workspace_manager_remove_window_twice() {
+        let config = WorkspaceConfig::default();
+        let mut manager = WorkspaceManager::new(config);
+
+        let rect = Rect::new(0, 0, 1920, 1080);
+        let monitor_areas = vec![(0, rect)];
+        manager.initialize(&monitor_areas).unwrap();
+
+        let hwnd = 12345;
+        manager.add_window_to_workspace(hwnd, 1).unwrap();
+
+        // Remove the window
+        let result1 = manager.remove_window(hwnd).unwrap();
+        assert_eq!(result1, Some(1));
+
+        // Try to remove it again
+        let result2 = manager.remove_window(hwnd).unwrap();
+        assert_eq!(result2, None);
+    }
+
+    // Test move_window_to_workspace
+
+    #[test]
+    fn test_workspace_manager_move_window_to_workspace() {
+        let config = WorkspaceConfig::default();
+        let mut manager = WorkspaceManager::new(config);
+
+        let rect = Rect::new(0, 0, 1920, 1080);
+        let monitor_areas = vec![(0, rect)];
+        manager.initialize(&monitor_areas).unwrap();
+
+        let hwnd = 12345;
+        manager.add_window_to_workspace(hwnd, 1).unwrap();
+
+        // Move window from workspace 1 to workspace 2
+        manager.move_window_to_workspace(hwnd, 1, 2).unwrap();
+
+        // Check window is no longer in workspace 1
+        let ws1 = manager.get_workspace(1).unwrap();
+        assert!(!ws1.windows.contains(&hwnd));
+
+        // Check window is now in workspace 2
+        let ws2 = manager.get_workspace(2).unwrap();
+        assert!(ws2.windows.contains(&hwnd));
+
+        // Check window-to-workspace mapping is updated
+        assert_eq!(manager.get_window_workspace(hwnd), Some(2));
+    }
+
+    #[test]
+    fn test_workspace_manager_move_window_to_same_workspace() {
+        let config = WorkspaceConfig::default();
+        let mut manager = WorkspaceManager::new(config);
+
+        let rect = Rect::new(0, 0, 1920, 1080);
+        let monitor_areas = vec![(0, rect)];
+        manager.initialize(&monitor_areas).unwrap();
+
+        let hwnd = 12345;
+        manager.add_window_to_workspace(hwnd, 1).unwrap();
+
+        // Move window to same workspace (should be a no-op)
+        manager.move_window_to_workspace(hwnd, 1, 1).unwrap();
+
+        // Check window is still in workspace 1
+        let ws1 = manager.get_workspace(1).unwrap();
+        assert!(ws1.windows.contains(&hwnd));
+        assert_eq!(manager.get_window_workspace(hwnd), Some(1));
+    }
+
+    #[test]
+    fn test_workspace_manager_move_window_to_nonexistent_workspace() {
+        let config = WorkspaceConfig::default();
+        let mut manager = WorkspaceManager::new(config);
+
+        let rect = Rect::new(0, 0, 1920, 1080);
+        let monitor_areas = vec![(0, rect)];
+        manager.initialize(&monitor_areas).unwrap();
+
+        let hwnd = 12345;
+        manager.add_window_to_workspace(hwnd, 1).unwrap();
+
+        // Try to move to non-existent workspace
+        let result = manager.move_window_to_workspace(hwnd, 1, 999);
+        assert!(result.is_err());
+        assert!(result.unwrap_err().to_string().contains("does not exist"));
+
+        // Window should still be in workspace 1
+        let ws1 = manager.get_workspace(1).unwrap();
+        assert!(ws1.windows.contains(&hwnd));
+    }
+
+    #[test]
+    fn test_workspace_manager_move_multiple_windows_between_workspaces() {
+        let config = WorkspaceConfig::default();
+        let mut manager = WorkspaceManager::new(config);
+
+        let rect = Rect::new(0, 0, 1920, 1080);
+        let monitor_areas = vec![(0, rect)];
+        manager.initialize(&monitor_areas).unwrap();
+
+        // Add windows to workspace 1
+        manager.add_window_to_workspace(100, 1).unwrap();
+        manager.add_window_to_workspace(200, 1).unwrap();
+        manager.add_window_to_workspace(300, 1).unwrap();
+
+        // Move two windows to workspace 2
+        manager.move_window_to_workspace(100, 1, 2).unwrap();
+        manager.move_window_to_workspace(200, 1, 2).unwrap();
+
+        // Check workspace 1 has only one window
+        let ws1 = manager.get_workspace(1).unwrap();
+        assert_eq!(ws1.windows.len(), 1);
+        assert!(ws1.windows.contains(&300));
+
+        // Check workspace 2 has two windows
+        let ws2 = manager.get_workspace(2).unwrap();
+        assert_eq!(ws2.windows.len(), 2);
+        assert!(ws2.windows.contains(&100));
+        assert!(ws2.windows.contains(&200));
+    }
+
+    #[test]
+    fn test_workspace_manager_move_window_chain() {
+        let config = WorkspaceConfig::default();
+        let mut manager = WorkspaceManager::new(config);
+
+        let rect = Rect::new(0, 0, 1920, 1080);
+        let monitor_areas = vec![(0, rect)];
+        manager.initialize(&monitor_areas).unwrap();
+
+        let hwnd = 12345;
+        manager.add_window_to_workspace(hwnd, 1).unwrap();
+
+        // Move through multiple workspaces
+        manager.move_window_to_workspace(hwnd, 1, 2).unwrap();
+        assert_eq!(manager.get_window_workspace(hwnd), Some(2));
+
+        manager.move_window_to_workspace(hwnd, 2, 3).unwrap();
+        assert_eq!(manager.get_window_workspace(hwnd), Some(3));
+
+        manager.move_window_to_workspace(hwnd, 3, 1).unwrap();
+        assert_eq!(manager.get_window_workspace(hwnd), Some(1));
+
+        // Check final state
+        let ws1 = manager.get_workspace(1).unwrap();
+        assert!(ws1.windows.contains(&hwnd));
+    }
+
+    // Test get_window_workspace
+
+    #[test]
+    fn test_workspace_manager_get_window_workspace() {
+        let config = WorkspaceConfig::default();
+        let mut manager = WorkspaceManager::new(config);
+
+        let rect = Rect::new(0, 0, 1920, 1080);
+        let monitor_areas = vec![(0, rect)];
+        manager.initialize(&monitor_areas).unwrap();
+
+        let hwnd = 12345;
+        manager.add_window_to_workspace(hwnd, 2).unwrap();
+
+        assert_eq!(manager.get_window_workspace(hwnd), Some(2));
+    }
+
+    #[test]
+    fn test_workspace_manager_get_window_workspace_not_found() {
+        let config = WorkspaceConfig::default();
+        let mut manager = WorkspaceManager::new(config);
+
+        let rect = Rect::new(0, 0, 1920, 1080);
+        let monitor_areas = vec![(0, rect)];
+        manager.initialize(&monitor_areas).unwrap();
+
+        assert_eq!(manager.get_window_workspace(99999), None);
+    }
+
+    #[test]
+    fn test_workspace_manager_get_window_workspace_after_move() {
+        let config = WorkspaceConfig::default();
+        let mut manager = WorkspaceManager::new(config);
+
+        let rect = Rect::new(0, 0, 1920, 1080);
+        let monitor_areas = vec![(0, rect)];
+        manager.initialize(&monitor_areas).unwrap();
+
+        let hwnd = 12345;
+        manager.add_window_to_workspace(hwnd, 1).unwrap();
+        assert_eq!(manager.get_window_workspace(hwnd), Some(1));
+
+        manager.move_window_to_workspace(hwnd, 1, 3).unwrap();
+        assert_eq!(manager.get_window_workspace(hwnd), Some(3));
+    }
+
+    #[test]
+    fn test_workspace_manager_get_window_workspace_after_remove() {
+        let config = WorkspaceConfig::default();
+        let mut manager = WorkspaceManager::new(config);
+
+        let rect = Rect::new(0, 0, 1920, 1080);
+        let monitor_areas = vec![(0, rect)];
+        manager.initialize(&monitor_areas).unwrap();
+
+        let hwnd = 12345;
+        manager.add_window_to_workspace(hwnd, 1).unwrap();
+        assert_eq!(manager.get_window_workspace(hwnd), Some(1));
+
+        manager.remove_window(hwnd).unwrap();
+        assert_eq!(manager.get_window_workspace(hwnd), None);
+    }
+
+    // Integration tests for window management
+
+    #[test]
+    fn test_workspace_manager_window_lifecycle() {
+        let config = WorkspaceConfig::default();
+        let mut manager = WorkspaceManager::new(config);
+
+        let rect = Rect::new(0, 0, 1920, 1080);
+        let monitor_areas = vec![(0, rect)];
+        manager.initialize(&monitor_areas).unwrap();
+
+        let hwnd = 12345;
+
+        // Add window
+        manager.add_window_to_workspace(hwnd, 1).unwrap();
+        assert_eq!(manager.window_count(), 1);
+        assert_eq!(manager.get_window_workspace(hwnd), Some(1));
+
+        // Move window
+        manager.move_window_to_workspace(hwnd, 1, 2).unwrap();
+        assert_eq!(manager.window_count(), 1);
+        assert_eq!(manager.get_window_workspace(hwnd), Some(2));
+
+        // Remove window
+        manager.remove_window(hwnd).unwrap();
+        assert_eq!(manager.window_count(), 0);
+        assert_eq!(manager.get_window_workspace(hwnd), None);
+    }
+
+    #[test]
+    fn test_workspace_manager_multiple_windows_lifecycle() {
+        let config = WorkspaceConfig::default();
+        let mut manager = WorkspaceManager::new(config);
+
+        let rect = Rect::new(0, 0, 1920, 1080);
+        let monitor_areas = vec![(0, rect)];
+        manager.initialize(&monitor_areas).unwrap();
+
+        // Add windows to different workspaces
+        manager.add_window_to_workspace(100, 1).unwrap();
+        manager.add_window_to_workspace(200, 2).unwrap();
+        manager.add_window_to_workspace(300, 3).unwrap();
+        assert_eq!(manager.window_count(), 3);
+
+        // Move all to workspace 1
+        manager.move_window_to_workspace(200, 2, 1).unwrap();
+        manager.move_window_to_workspace(300, 3, 1).unwrap();
+
+        let ws1 = manager.get_workspace(1).unwrap();
+        assert_eq!(ws1.windows.len(), 3);
+
+        // Remove one window
+        manager.remove_window(200).unwrap();
+        assert_eq!(manager.window_count(), 2);
+
+        let ws1 = manager.get_workspace(1).unwrap();
+        assert_eq!(ws1.windows.len(), 2);
+    }
+
+    #[test]
+    fn test_workspace_manager_delete_workspace_moves_windows() {
+        let config = WorkspaceConfig::default();
+        let mut manager = WorkspaceManager::new(config);
+
+        let rect = Rect::new(0, 0, 1920, 1080);
+        let monitor_areas = vec![(0, rect)];
+        manager.initialize(&monitor_areas).unwrap();
+
+        // Add windows to workspace 2
+        manager.add_window_to_workspace(100, 2).unwrap();
+        manager.add_window_to_workspace(200, 2).unwrap();
+
+        // Delete workspace 2 (move windows to workspace 1)
+        manager.delete_workspace(2, 1).unwrap();
+
+        // Check windows are now in workspace 1
+        assert_eq!(manager.get_window_workspace(100), Some(1));
+        assert_eq!(manager.get_window_workspace(200), Some(1));
+
+        let ws1 = manager.get_workspace(1).unwrap();
+        assert_eq!(ws1.windows.len(), 2);
+        assert!(ws1.windows.contains(&100));
+        assert!(ws1.windows.contains(&200));
+    }
+
+    #[test]
+    fn test_workspace_manager_add_duplicate_window_is_idempotent() {
+        let config = WorkspaceConfig::default();
+        let mut manager = WorkspaceManager::new(config);
+
+        let rect = Rect::new(0, 0, 1920, 1080);
+        let monitor_areas = vec![(0, rect)];
+        manager.initialize(&monitor_areas).unwrap();
+
+        let hwnd = 12345;
+
+        // Add same window multiple times
+        manager.add_window_to_workspace(hwnd, 1).unwrap();
+        manager.add_window_to_workspace(hwnd, 1).unwrap();
+        manager.add_window_to_workspace(hwnd, 1).unwrap();
+
+        // Should only appear once
+        let ws = manager.get_workspace(1).unwrap();
+        assert_eq!(ws.windows.len(), 1);
+        assert_eq!(manager.window_count(), 1);
+    }
 }
