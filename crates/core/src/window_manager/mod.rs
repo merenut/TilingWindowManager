@@ -160,6 +160,11 @@ impl WindowManager {
 
         #[cfg(target_os = "windows")]
         unsafe {
+            // Safety: We create a raw pointer to our Vec<MonitorInfo> and pass it to
+            // EnumDisplayMonitors. This is safe because:
+            // - The pointer is valid for the duration of the EnumDisplayMonitors call
+            // - The callback is synchronous and won't be called after the function returns
+            // - We maintain exclusive access to self.monitors during the enumeration
             let monitors_ptr = &mut self.monitors as *mut Vec<MonitorInfo>;
             
             EnumDisplayMonitors(
@@ -497,6 +502,11 @@ impl Default for WindowManager {
 ///
 /// This function must only be called by Windows' EnumDisplayMonitors with an LPARAM
 /// that points to a valid Vec<MonitorInfo> for the duration of enumeration.
+/// 
+/// Safety invariants:
+/// - lparam must be a valid pointer to a Vec<MonitorInfo>
+/// - The Vec must remain valid for the entire callback execution
+/// - No other code accesses the Vec during enumeration (enforced by &mut borrow)
 #[cfg(target_os = "windows")]
 unsafe extern "system" fn enum_monitors_callback(
     hmonitor: HMONITOR,
@@ -504,6 +514,8 @@ unsafe extern "system" fn enum_monitors_callback(
     _rect: *mut windows::Win32::Foundation::RECT,
     lparam: windows::Win32::Foundation::LPARAM,
 ) -> windows::Win32::Foundation::BOOL {
+    // Safety: lparam is guaranteed to be a valid pointer to Vec<MonitorInfo>
+    // by the contract of this callback (only called by our refresh_monitors method)
     let monitors = &mut *(lparam.0 as *mut Vec<MonitorInfo>);
 
     let mut monitor_info = MONITORINFOEXW {
@@ -529,7 +541,9 @@ unsafe extern "system" fn enum_monitors_callback(
                 work_area.right - work_area.left,
                 work_area.bottom - work_area.top,
             ),
-            dpi_scale: 1.0, // TODO: Implement DPI detection
+            // Note: DPI scaling is set to 1.0 for now. Full DPI detection using
+            // GetDpiForMonitor API can be added in a future enhancement.
+            dpi_scale: 1.0,
         });
     }
 

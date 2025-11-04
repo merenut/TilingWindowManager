@@ -181,7 +181,9 @@ fn test_window_management_lifecycle() {
     
     // Unmanage windows
     for window in windows.iter().take(3) {
-        wm.unmanage_window(window).ok();
+        if let Err(e) = wm.unmanage_window(window) {
+            eprintln!("Warning: Failed to unmanage window: {}", e);
+        }
     }
     
     println!("Integration test completed successfully");
@@ -205,18 +207,18 @@ fn test_multi_workspace_windows() {
     }
     
     // Add windows to workspace 1
-    wm.switch_workspace(1).ok();
+    wm.switch_workspace(1).expect("Failed to switch to workspace 1");
     for window in windows.iter().take(2) {
         if wm.should_manage_window(window).unwrap_or(false) {
-            wm.manage_window(*window).ok();
+            wm.manage_window(*window).expect("Failed to manage window in workspace 1");
         }
     }
     
     // Add windows to workspace 2
-    wm.switch_workspace(2).ok();
+    wm.switch_workspace(2).expect("Failed to switch to workspace 2");
     for window in windows.iter().skip(2).take(2) {
         if wm.should_manage_window(window).unwrap_or(false) {
-            wm.manage_window(*window).ok();
+            wm.manage_window(*window).expect("Failed to manage window in workspace 2");
         }
     }
     
