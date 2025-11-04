@@ -995,6 +995,9 @@ impl WorkspaceManager {
                                     handle.get_process_name(),
                                 ) {
                                     Some(crate::workspace::persistence::WindowState {
+                                        // HWND is stored as a string for cross-session persistence.
+                                        // While HWNDs are not guaranteed to be the same across restarts,
+                                        // this metadata helps track which windows belonged to which workspace.
                                         hwnd: format!("{}", hwnd),
                                         process_name: process,
                                         title,
@@ -1029,6 +1032,9 @@ impl WorkspaceManager {
             state.workspaces.push(ws_state);
         }
         
+        // Save window-to-workspace mappings. HWNDs are converted to strings for serialization.
+        // Note: These mappings are primarily for state tracking and analysis, as HWNDs
+        // typically change across sessions.
         for (&hwnd, &workspace_id) in &self.window_to_workspace {
             state.window_to_workspace.insert(format!("{}", hwnd), workspace_id);
         }
@@ -1068,6 +1074,10 @@ impl WorkspaceManager {
                 area,
             );
             
+            // Virtual Desktop IDs are not restored immediately because they need to be
+            // reassigned by the Virtual Desktop manager during sync_with_virtual_desktops().
+            // The saved IDs are preserved in the state file for reference but may not be
+            // valid after a system restart.
             workspace.virtual_desktop_id = None;
             
             self.workspaces.insert(workspace.id, workspace);

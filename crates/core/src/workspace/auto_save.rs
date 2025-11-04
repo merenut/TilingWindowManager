@@ -129,6 +129,10 @@ impl AutoSaver {
         let interval = self.interval;
         let running = self.running.clone();
         
+        // Note: The task handle is intentionally not stored because:
+        // 1. The task is designed to check the running flag and exit gracefully
+        // 2. Storing the handle would complicate the struct lifetime
+        // 3. The stop() method sets the flag, allowing the task to complete naturally
         tokio::spawn(async move {
             loop {
                 tokio::time::sleep(interval).await;
