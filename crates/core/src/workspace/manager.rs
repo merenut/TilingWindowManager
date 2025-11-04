@@ -952,11 +952,13 @@ impl WorkspaceManager {
     /// assert_eq!(rect.height, 1620);
     /// ```
     pub fn apply_dpi_scaling(rect: &mut crate::window_manager::tree::Rect, dpi_scale: f32) {
-        if (dpi_scale - 1.0).abs() > 0.01 {
-            rect.x = (rect.x as f32 * dpi_scale) as i32;
-            rect.y = (rect.y as f32 * dpi_scale) as i32;
-            rect.width = (rect.width as f32 * dpi_scale) as i32;
-            rect.height = (rect.height as f32 * dpi_scale) as i32;
+        // Clamp dpi_scale to a safe range to prevent overflow and nonsensical geometry
+        let scale = dpi_scale.clamp(0.5, 5.0);
+        if (scale - 1.0).abs() > 0.01 {
+            rect.x = (rect.x as f32 * scale) as i32;
+            rect.y = (rect.y as f32 * scale) as i32;
+            rect.width = (rect.width as f32 * scale) as i32;
+            rect.height = (rect.height as f32 * scale) as i32;
         }
     }
 }
