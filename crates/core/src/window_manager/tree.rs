@@ -655,3 +655,28 @@ impl TreeNode {
         Ok(())
     }
 }
+
+impl std::fmt::Debug for TreeNode {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match &self.node_type {
+            NodeType::Leaf { hwnd } => f
+                .debug_struct("TreeNode::Leaf")
+                .field("rect", &self.rect)
+                .field("hwnd", &format!("{:?}", hwnd.0))
+                .finish(),
+            NodeType::Container {
+                split,
+                left,
+                right,
+                ratio,
+            } => f
+                .debug_struct("TreeNode::Container")
+                .field("rect", &self.rect)
+                .field("split", split)
+                .field("ratio", ratio)
+                .field("left", left)
+                .field("right", right)
+                .finish(),
+        }
+    }
+}
