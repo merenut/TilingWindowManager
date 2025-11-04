@@ -856,16 +856,36 @@ mod window_manager_tests {
                 let result = wm.manage_window(*window);
                 assert!(result.is_ok());
 
-                // Verify it's tracked
-                assert!(wm.managed_windows.contains_key(&window.hwnd().0));
+                // Verify it's tracked in the registry
+                assert!(wm.registry.get(window.hwnd().0).is_some());
 
                 // Unmanage the window
                 let result = wm.unmanage_window(window);
                 assert!(result.is_ok());
 
                 // Verify it's no longer tracked
-                assert!(!wm.managed_windows.contains_key(&window.hwnd().0));
+                assert!(wm.registry.get(window.hwnd().0).is_none());
             }
         }
+    }
+
+    #[test]
+    fn test_layout_type_creation() {
+        let wm = WindowManager::new();
+        assert_eq!(wm.get_current_layout(), LayoutType::Dwindle);
+    }
+
+    #[test]
+    fn test_set_layout() {
+        let mut wm = WindowManager::new();
+        wm.initialize().ok();
+
+        assert_eq!(wm.get_current_layout(), LayoutType::Dwindle);
+
+        wm.set_layout(LayoutType::Master).ok();
+        assert_eq!(wm.get_current_layout(), LayoutType::Master);
+
+        wm.set_layout(LayoutType::Dwindle).ok();
+        assert_eq!(wm.get_current_layout(), LayoutType::Dwindle);
     }
 }
