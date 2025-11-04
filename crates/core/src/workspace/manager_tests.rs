@@ -557,6 +557,23 @@ mod tests {
     }
 
     #[test]
+    fn test_workspace_manager_cannot_delete_last_workspace() {
+        let config = WorkspaceConfig::default();
+        let mut manager = WorkspaceManager::new(config);
+
+        let rect = Rect::new(0, 0, 1920, 1080);
+        let id1 = manager.create_workspace("Only".to_string(), 0, rect);
+        
+        // Try to delete the only workspace
+        let result = manager.delete_workspace(id1, id1);
+        assert!(result.is_err());
+        assert!(result.unwrap_err().to_string().contains("Cannot delete the last workspace"));
+        
+        // Workspace should still exist
+        assert_eq!(manager.workspace_count(), 1);
+    }
+
+    #[test]
     fn test_workspace_manager_delete_workspace_switches_if_active() {
         let config = WorkspaceConfig::default();
         let mut manager = WorkspaceManager::new(config);

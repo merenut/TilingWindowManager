@@ -355,6 +355,10 @@ impl WorkspaceManager {
             anyhow::bail!("Cannot delete workspace into itself");
         }
         
+        if self.workspaces.len() <= 1 {
+            anyhow::bail!("Cannot delete the last workspace");
+        }
+        
         if !self.workspaces.contains_key(&workspace_id) {
             anyhow::bail!("Workspace {} does not exist", workspace_id);
         }
