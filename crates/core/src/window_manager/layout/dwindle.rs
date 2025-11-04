@@ -179,6 +179,12 @@ impl DwindleLayout {
     /// # Returns
     ///
     /// The split ratio to use.
+    ///
+    /// # Note
+    ///
+    /// This method is currently not used in the implementation as TreeNode
+    /// uses a fixed 0.5 ratio. It's provided for future enhancements where
+    /// dynamic ratio calculation based on tree depth might be desired.
     pub fn calculate_split_ratio(&self, depth: usize) -> f32 {
         // Use golden ratio for pleasant proportions at deeper levels
         if depth > 2 {
@@ -265,6 +271,9 @@ impl DwindleLayout {
     /// ```
     pub fn remove_window(&self, tree: &mut TreeNode, hwnd: HWND) -> anyhow::Result<bool> {
         // Check if the window exists in the tree first
+        // Note: This traverses the entire tree. For large trees, a dedicated
+        // contains_window() method that can short-circuit would be more efficient.
+        // However, for typical window counts (< 20), this is acceptable.
         let window_exists = tree.collect().iter().any(|(h, _)| *h == hwnd);
         
         if !window_exists {
