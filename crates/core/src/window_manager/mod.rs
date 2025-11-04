@@ -167,12 +167,16 @@ impl WindowManager {
             // - We maintain exclusive access to self.monitors during the enumeration
             let monitors_ptr = &mut self.monitors as *mut Vec<MonitorInfo>;
             
-            EnumDisplayMonitors(
+            let result = EnumDisplayMonitors(
                 HDC(0),
                 None,
                 Some(enum_monitors_callback),
                 windows::Win32::Foundation::LPARAM(monitors_ptr as isize),
-            )?;
+            );
+            
+            if !result.as_bool() {
+                return Err(anyhow::anyhow!("Failed to enumerate display monitors"));
+            }
         }
 
         #[cfg(not(target_os = "windows"))]
