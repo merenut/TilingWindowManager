@@ -203,6 +203,16 @@ impl WindowHandle {
     /// # Returns
     /// 
     /// The thread ID as a u32.
+    /// 
+    /// # Examples
+    /// 
+    /// ```no_run
+    /// # use tiling_wm_core::utils::win32::get_foreground_window;
+    /// if let Some(window) = get_foreground_window() {
+    ///     let tid = window.get_thread_id();
+    ///     println!("Window thread ID: {}", tid);
+    /// }
+    /// ```
     pub fn get_thread_id(&self) -> u32 {
         unsafe {
             GetWindowThreadProcessId(self.0, None)
@@ -379,9 +389,11 @@ impl WindowHandle {
     /// 
     /// # Notes
     /// 
-    /// This is a heuristic filter. Some legitimate application windows may be filtered out
-    /// if they temporarily have no title or fail the title retrieval. Applications needing
-    /// more precise filtering should use additional criteria.
+    /// This is a heuristic filter that uses common characteristics of application windows.
+    /// While most application windows have non-empty titles, some may temporarily lack a title
+    /// during initialization or in edge cases. Such windows will be excluded by this filter.
+    /// If you need more precise filtering, consider using additional criteria or combining
+    /// this with other filter functions.
     pub fn is_app_window(&self) -> bool {
         if !self.is_visible() {
             return false;
@@ -392,8 +404,8 @@ impl WindowHandle {
             return false;
         }
 
-        // Window should have a title - most app windows do, though some may temporarily have none
-        // If we can't get the title, err on the side of caution and exclude it
+        // Window should have a non-empty title - most app windows do
+        // If we can't get the title or it's empty, err on the side of caution and exclude it
         match self.get_title() {
             Ok(title) => !title.is_empty(),
             Err(_) => false,
@@ -659,6 +671,7 @@ mod win32_tests {
     //! - Error handling works correctly
 
     use super::*;
+    use windows::Win32::UI::WindowsAndMessaging::SW_SHOW;
 
     /// Test that WindowHandle can be created from HWND
     #[test]
