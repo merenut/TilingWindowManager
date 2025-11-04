@@ -334,21 +334,37 @@ impl WindowHandle {
     }
 
     /// Minimize the window.
+    ///
+    /// This method requests the window to be minimized using the Windows API.
+    /// The result of the underlying API call (a boolean indicating success) is silently discarded.
+    /// This method does not report success or failure.
     pub fn minimize(&self) {
         self.show(SW_MINIMIZE);
     }
 
     /// Maximize the window.
+    ///
+    /// This method requests the window to be maximized using the Windows API.
+    /// The result of the underlying API call (a boolean indicating success) is silently discarded.
+    /// This method does not report success or failure.
     pub fn maximize(&self) {
         self.show(SW_MAXIMIZE);
     }
 
     /// Restore the window to its normal size.
+    ///
+    /// This method requests the window to be restored to its normal size using the Windows API.
+    /// The result of the underlying API call (a boolean indicating success) is silently discarded.
+    /// This method does not report success or failure.
     pub fn restore(&self) {
         self.show(SW_RESTORE);
     }
 
     /// Hide the window.
+    ///
+    /// This method requests the window to be hidden using the Windows API.
+    /// The result of the underlying API call (a boolean indicating success) is silently discarded.
+    /// This method does not report success or failure.
     pub fn hide(&self) {
         self.show(SW_HIDE);
     }
