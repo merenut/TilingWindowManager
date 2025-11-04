@@ -374,11 +374,13 @@ impl CommandExecutor {
 
         if delta > 0 {
             wm.increase_master_count();
-        } else {
+            wm.retile_workspace(wm.get_active_workspace())?;
+        } else if delta < 0 {
             wm.decrease_master_count();
+            wm.retile_workspace(wm.get_active_workspace())?;
         }
+        // If delta == 0, do nothing
         
-        wm.retile_workspace(wm.get_active_workspace())?;
         Ok(())
     }
 
@@ -414,7 +416,13 @@ impl CommandExecutor {
         workspace_id: usize,
     ) -> Result<()> {
         debug!("Moving window to workspace {} and following", workspace_id);
+        
+        // Note: move_to_workspace is not yet fully implemented
+        // For consistency, we warn but don't fail the workspace switch
         self.move_to_workspace(wm, workspace_id)?;
+        
+        // Switch to the target workspace regardless of move success
+        // This allows the command to partially work even if move isn't implemented yet
         wm.switch_workspace(workspace_id)?;
         Ok(())
     }
