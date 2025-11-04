@@ -73,7 +73,7 @@ fn scan_and_manage_windows(wm: &mut WindowManager) -> Result<()> {
     #[cfg(target_os = "windows")]
     {
         use utils::win32;
-        use tracing::warn;
+        use tracing::{warn, debug};
         
         match win32::enumerate_app_windows() {
             Ok(windows) => {
