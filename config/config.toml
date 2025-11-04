@@ -1,0 +1,62 @@
+# Tiling Window Manager Configuration
+# Version: 0.1.0
+
+[general]
+# Gap size between windows (pixels)
+gaps_in = 5
+
+# Gap size around screen edges (pixels)
+gaps_out = 10
+
+# Border size around windows (pixels)
+border_size = 2
+
+# Active window border color (hex)
+active_border_color = "#89b4fa"
+
+# Inactive window border color (hex)
+inactive_border_color = "#585b70"
+
+[decoration]
+# Corner rounding radius (pixels)
+rounding = 10
+
+# Active window opacity (0.0 - 1.0)
+active_opacity = 1.0
+
+# Inactive window opacity (0.0 - 1.0)
+inactive_opacity = 0.9
+
+[animations]
+# Enable animations
+enabled = true
+
+# Animation speed multiplier (1.0 = normal)
+speed = 1.0
+
+[layouts]
+# Default layout for new workspaces
+default = "dwindle"
+
+[layouts.dwindle]
+# Automatically choose split direction based on window dimensions
+smart_split = true
+
+# Remove gaps when only one window
+no_gaps_when_only = false
+
+[layouts.master]
+# Size ratio for master window (0.0 - 1.0)
+master_factor = 0.55
+
+# Number of windows in master area
+master_count = 1
+
+# Example window rules (not yet implemented)
+# [[window_rules]]
+# match_process = "firefox.exe"
+# actions = ["workspace:2"]
+
+# [[window_rules]]
+# match_title = ".*Calculator.*"
+# actions = ["float"]

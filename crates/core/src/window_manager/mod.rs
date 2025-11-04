@@ -22,15 +22,15 @@ pub mod tree;
 #[cfg(test)]
 mod tree_tests;
 
-pub use tree::{TreeNode, Rect, Split};
+pub use tree::{Rect, Split, TreeNode};
 
+use crate::utils::win32::WindowHandle;
 use std::collections::HashMap;
 use windows::Win32::Foundation::HWND;
 #[cfg(target_os = "windows")]
 use windows::Win32::Graphics::Gdi::{
     EnumDisplayMonitors, GetMonitorInfoW, HDC, HMONITOR, MONITORINFOEXW,
 };
-use crate::utils::win32::WindowHandle;
 
 /// Information about a display monitor.
 ///
@@ -136,11 +136,14 @@ impl WindowManager {
                 monitor.work_area.width - 2 * gaps_out,
                 monitor.work_area.height - 2 * gaps_out,
             );
-            
+
             for workspace_id in 1..=10 {
                 // We don't create trees yet - they'll be created when windows are added
                 // Just reserve the workspace IDs
-                self.trees.insert(workspace_id, TreeNode::new_leaf(HWND(0), work_area_with_gaps));
+                self.trees.insert(
+                    workspace_id,
+                    TreeNode::new_leaf(HWND(0), work_area_with_gaps),
+                );
             }
         }
 
@@ -175,14 +178,14 @@ impl WindowManager {
             // - The callback is synchronous and won't be called after the function returns
             // - We maintain exclusive access to self.monitors during the enumeration
             let monitors_ptr = &mut self.monitors as *mut Vec<MonitorInfo>;
-            
+
             let result = EnumDisplayMonitors(
                 HDC(0),
                 None,
                 Some(enum_monitors_callback),
                 windows::Win32::Foundation::LPARAM(monitors_ptr as isize),
             );
-            
+
             if !result.as_bool() {
                 return Err(anyhow::anyhow!("Failed to enumerate display monitors"));
             }
@@ -200,7 +203,8 @@ impl WindowManager {
         }
 
         // Sort monitors by position for consistent ordering
-        self.monitors.sort_by_key(|m| (m.work_area.x, m.work_area.y));
+        self.monitors
+            .sort_by_key(|m| (m.work_area.x, m.work_area.y));
 
         // Assign sequential IDs
         for (idx, monitor) in self.monitors.iter_mut().enumerate() {
@@ -234,7 +238,7 @@ impl WindowManager {
     ///
     /// let wm = WindowManager::new();
     /// let windows = win32::enumerate_windows().unwrap();
-    /// 
+    ///
     /// for window in windows {
     ///     if wm.should_manage_window(&window).unwrap_or(false) {
     ///         println!("Should manage: {}", window.get_title().unwrap_or_default());
@@ -276,7 +280,7 @@ impl WindowManager {
     /// ```
     pub fn manage_window(&mut self, window: WindowHandle) -> anyhow::Result<()> {
         let hwnd = window.hwnd();
-        
+
         // Check if already managed
         if self.managed_windows.contains_key(&hwnd.0) {
             return Ok(());
@@ -285,7 +289,7 @@ impl WindowManager {
         // Get or create the tree for the active workspace
         let workspace_id = self.active_workspace;
         let work_area = self.get_primary_monitor_work_area();
-        
+
         // Apply outer gaps to the work area to create spacing from screen edges
         let gaps_out = 10;
         let work_area_with_gaps = Rect::new(
@@ -349,7 +353,7 @@ impl WindowManager {
     /// ```
     pub fn unmanage_window(&mut self, window: &WindowHandle) -> anyhow::Result<()> {
         let hwnd = window.hwnd();
-        
+
         // Find which workspace this window belongs to
         if let Some(&workspace_id) = self.managed_windows.get(&hwnd.0) {
             // Remove from the tree
@@ -361,7 +365,8 @@ impl WindowManager {
                 } else {
                     // Tree is now empty, create an empty placeholder
                     let work_area = self.get_primary_monitor_work_area();
-                    self.trees.insert(workspace_id, TreeNode::new_leaf(HWND(0), work_area));
+                    self.trees
+                        .insert(workspace_id, TreeNode::new_leaf(HWND(0), work_area));
                 }
             }
 
@@ -524,7 +529,7 @@ impl Default for WindowManager {
 ///
 /// This function must only be called by Windows' EnumDisplayMonitors with an LPARAM
 /// that points to a valid Vec<MonitorInfo> for the duration of enumeration.
-/// 
+///
 /// Safety invariants:
 /// - lparam must be a valid pointer to a Vec<MonitorInfo>
 /// - The Vec must remain valid for the entire callback execution
@@ -603,7 +608,7 @@ mod window_manager_tests {
     fn test_workspace_tree_access() {
         let mut wm = WindowManager::new();
         wm.initialize().ok();
-        
+
         // Should be able to access workspace 1
         assert!(wm.get_workspace_tree(1).is_some());
         assert!(wm.get_workspace_tree_mut(1).is_some());
@@ -613,9 +618,9 @@ mod window_manager_tests {
     #[cfg(target_os = "windows")]
     fn test_should_manage_window() {
         use crate::utils::win32;
-        
+
         let wm = WindowManager::new();
-        
+
         // Test with actual app windows
         if let Ok(windows) = win32::enumerate_app_windows() {
             for window in windows.iter().take(3) {
@@ -633,12 +638,12 @@ mod window_manager_tests {
     fn test_switch_workspace() {
         let mut wm = WindowManager::new();
         wm.initialize().ok();
-        
+
         assert_eq!(wm.get_active_workspace(), 1);
-        
+
         wm.switch_workspace(2).ok();
         assert_eq!(wm.get_active_workspace(), 2);
-        
+
         wm.switch_workspace(1).ok();
         assert_eq!(wm.get_active_workspace(), 1);
     }
@@ -649,10 +654,10 @@ mod window_manager_tests {
         let mut wm = WindowManager::new();
         let result = wm.refresh_monitors();
         assert!(result.is_ok());
-        
+
         // Should detect at least one monitor
         assert!(!wm.get_monitors().is_empty());
-        
+
         // Check monitor IDs are sequential
         for (idx, monitor) in wm.get_monitors().iter().enumerate() {
             assert_eq!(monitor.id, idx);
@@ -665,26 +670,26 @@ mod window_manager_tests {
     #[cfg(target_os = "windows")]
     fn test_manage_and_unmanage_window() {
         use crate::utils::win32;
-        
+
         let mut wm = WindowManager::new();
         wm.initialize().expect("Failed to initialize");
-        
+
         // Find a manageable window
         let windows = win32::enumerate_app_windows().expect("Failed to enumerate windows");
-        
+
         if let Some(window) = windows.first() {
             if wm.should_manage_window(window).unwrap_or(false) {
                 // Manage the window
                 let result = wm.manage_window(*window);
                 assert!(result.is_ok());
-                
+
                 // Verify it's tracked
                 assert!(wm.managed_windows.contains_key(&window.hwnd().0));
-                
+
                 // Unmanage the window
                 let result = wm.unmanage_window(window);
                 assert!(result.is_ok());
-                
+
                 // Verify it's no longer tracked
                 assert!(!wm.managed_windows.contains_key(&window.hwnd().0));
             }

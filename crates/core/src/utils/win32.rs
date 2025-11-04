@@ -40,22 +40,22 @@ use windows::{
     Win32::Foundation::{BOOL, HWND, LPARAM, RECT, WPARAM},
     Win32::UI::WindowsAndMessaging::{
         EnumWindows, GetClassNameW, GetForegroundWindow, GetParent, GetWindow, GetWindowRect,
-        GetWindowTextLengthW, GetWindowTextW, GetWindowThreadProcessId, IsIconic,
-        IsWindowVisible, IsZoomed, PostMessageW, SetForegroundWindow, ShowWindow,
-        GW_OWNER, SHOW_WINDOW_CMD, SW_HIDE, SW_MAXIMIZE, SW_MINIMIZE, SW_RESTORE, WM_CLOSE,
+        GetWindowTextLengthW, GetWindowTextW, GetWindowThreadProcessId, IsIconic, IsWindowVisible,
+        IsZoomed, PostMessageW, SetForegroundWindow, ShowWindow, GW_OWNER, SHOW_WINDOW_CMD,
+        SW_HIDE, SW_MAXIMIZE, SW_MINIMIZE, SW_RESTORE, WM_CLOSE,
     },
 };
 
 /// A wrapper around Windows HWND providing safe access to window operations.
-/// 
+///
 /// This struct provides a type-safe Rust interface to Windows window management APIs,
 /// ensuring proper error handling and memory safety when interacting with Win32 APIs.
-/// 
+///
 /// # Examples
-/// 
+///
 /// ```no_run
 /// use tiling_wm_core::utils::win32::WindowHandle;
-/// 
+///
 /// // Get the foreground window
 /// if let Some(window) = tiling_wm_core::utils::win32::get_foreground_window() {
 ///     // Get window properties
@@ -69,13 +69,13 @@ pub struct WindowHandle(pub HWND);
 
 impl WindowHandle {
     /// Create a WindowHandle from a raw HWND.
-    /// 
+    ///
     /// # Arguments
-    /// 
+    ///
     /// * `hwnd` - A Windows window handle (HWND)
-    /// 
+    ///
     /// # Examples
-    /// 
+    ///
     /// ```no_run
     /// # use windows::Win32::Foundation::HWND;
     /// # use tiling_wm_core::utils::win32::WindowHandle;
@@ -87,35 +87,35 @@ impl WindowHandle {
     }
 
     /// Get the raw HWND value.
-    /// 
+    ///
     /// # Returns
-    /// 
+    ///
     /// The underlying Windows window handle.
     pub fn hwnd(&self) -> HWND {
         self.0
     }
 
     /// Check if the window handle is valid (non-null).
-    /// 
+    ///
     /// # Returns
-    /// 
+    ///
     /// `true` if the handle is non-null, `false` otherwise.
     pub fn is_valid(&self) -> bool {
-        self.0.0 != 0
+        self.0 .0 != 0
     }
 
     /// Get the window title.
-    /// 
+    ///
     /// # Returns
-    /// 
+    ///
     /// The window title as a String, or an empty string if the window has no title.
-    /// 
+    ///
     /// # Errors
-    /// 
+    ///
     /// Returns an error if the Windows API call fails.
-    /// 
+    ///
     /// # Examples
-    /// 
+    ///
     /// ```no_run
     /// # use tiling_wm_core::utils::win32::get_foreground_window;
     /// if let Some(window) = get_foreground_window() {
@@ -132,7 +132,7 @@ impl WindowHandle {
 
             let mut buffer = vec![0u16; (length + 1) as usize];
             let result = GetWindowTextW(self.0, &mut buffer);
-            
+
             if result > 0 {
                 let title = String::from_utf16_lossy(&buffer[..result as usize]);
                 Ok(title)
@@ -143,17 +143,17 @@ impl WindowHandle {
     }
 
     /// Get the window class name.
-    /// 
+    ///
     /// # Returns
-    /// 
+    ///
     /// The window class name as a String, or an empty string on failure.
-    /// 
+    ///
     /// # Errors
-    /// 
+    ///
     /// Returns an error if the Windows API call fails.
-    /// 
+    ///
     /// # Examples
-    /// 
+    ///
     /// ```no_run
     /// # use tiling_wm_core::utils::win32::get_foreground_window;
     /// if let Some(window) = get_foreground_window() {
@@ -165,7 +165,7 @@ impl WindowHandle {
         unsafe {
             let mut buffer = [0u16; 256];
             let result = GetClassNameW(self.0, &mut buffer);
-            
+
             if result > 0 {
                 let class = String::from_utf16_lossy(&buffer[..result as usize]);
                 Ok(class)
@@ -176,13 +176,13 @@ impl WindowHandle {
     }
 
     /// Get the process ID that created this window.
-    /// 
+    ///
     /// # Returns
-    /// 
+    ///
     /// The process ID (PID) as a u32.
-    /// 
+    ///
     /// # Examples
-    /// 
+    ///
     /// ```no_run
     /// # use tiling_wm_core::utils::win32::get_foreground_window;
     /// if let Some(window) = get_foreground_window() {
@@ -199,13 +199,13 @@ impl WindowHandle {
     }
 
     /// Get the thread ID that created this window.
-    /// 
+    ///
     /// # Returns
-    /// 
+    ///
     /// The thread ID as a u32.
-    /// 
+    ///
     /// # Examples
-    /// 
+    ///
     /// ```no_run
     /// # use tiling_wm_core::utils::win32::get_foreground_window;
     /// if let Some(window) = get_foreground_window() {
@@ -214,46 +214,44 @@ impl WindowHandle {
     /// }
     /// ```
     pub fn get_thread_id(&self) -> u32 {
-        unsafe {
-            GetWindowThreadProcessId(self.0, None)
-        }
+        unsafe { GetWindowThreadProcessId(self.0, None) }
     }
 
     /// Check if the window is visible.
-    /// 
+    ///
     /// # Returns
-    /// 
+    ///
     /// `true` if the window is visible, `false` otherwise.
     pub fn is_visible(&self) -> bool {
         unsafe { IsWindowVisible(self.0).as_bool() }
     }
 
     /// Check if the window is minimized (iconic).
-    /// 
+    ///
     /// # Returns
-    /// 
+    ///
     /// `true` if the window is minimized, `false` otherwise.
     pub fn is_minimized(&self) -> bool {
         unsafe { IsIconic(self.0).as_bool() }
     }
 
     /// Check if the window is maximized.
-    /// 
+    ///
     /// # Returns
-    /// 
+    ///
     /// `true` if the window is maximized, `false` otherwise.
     pub fn is_maximized(&self) -> bool {
         unsafe { IsZoomed(self.0).as_bool() }
     }
 
     /// Get the window rectangle (position and size) in screen coordinates.
-    /// 
+    ///
     /// # Returns
-    /// 
+    ///
     /// A RECT structure containing the window's position and dimensions.
-    /// 
+    ///
     /// # Errors
-    /// 
+    ///
     /// Returns an error if the Windows API call fails.
     pub fn get_rect(&self) -> anyhow::Result<RECT> {
         unsafe {
@@ -264,9 +262,9 @@ impl WindowHandle {
     }
 
     /// Get the parent window handle.
-    /// 
+    ///
     /// # Returns
-    /// 
+    ///
     /// Some(WindowHandle) if the window has a parent, None otherwise.
     pub fn get_parent(&self) -> Option<WindowHandle> {
         unsafe {
@@ -280,9 +278,9 @@ impl WindowHandle {
     }
 
     /// Get the owner window handle.
-    /// 
+    ///
     /// # Returns
-    /// 
+    ///
     /// Some(WindowHandle) if the window has an owner, None otherwise.
     pub fn get_owner(&self) -> Option<WindowHandle> {
         unsafe {
@@ -296,26 +294,26 @@ impl WindowHandle {
     }
 
     /// Show the window.
-    /// 
+    ///
     /// # Arguments
-    /// 
+    ///
     /// * `cmd` - The show command (e.g., SW_SHOW, SW_HIDE, SW_MINIMIZE, etc.)
-    /// 
+    ///
     /// # Returns
-    /// 
+    ///
     /// `true` if the window was previously visible, `false` otherwise.
     pub fn show(&self, cmd: SHOW_WINDOW_CMD) -> bool {
         unsafe { ShowWindow(self.0, cmd).as_bool() }
     }
 
     /// Set the window as the foreground window (bring to front and focus).
-    /// 
+    ///
     /// # Returns
-    /// 
+    ///
     /// Ok(()) if successful, Err otherwise.
-    /// 
+    ///
     /// # Errors
-    /// 
+    ///
     /// Returns an error if the window cannot be brought to the foreground.
     pub fn set_foreground(&self) -> anyhow::Result<()> {
         unsafe {
@@ -328,13 +326,13 @@ impl WindowHandle {
     }
 
     /// Close the window by sending a WM_CLOSE message.
-    /// 
+    ///
     /// # Returns
-    /// 
+    ///
     /// Ok(()) if the message was sent successfully, Err otherwise.
-    /// 
+    ///
     /// # Errors
-    /// 
+    ///
     /// Returns an error if the message cannot be sent.
     pub fn close(&self) -> anyhow::Result<()> {
         unsafe {
@@ -380,15 +378,15 @@ impl WindowHandle {
     }
 
     /// Check if this is a standard application window (has title, is visible, has no owner).
-    /// 
+    ///
     /// This is useful for filtering out non-application windows like tooltips, menu windows, etc.
-    /// 
+    ///
     /// # Returns
-    /// 
+    ///
     /// `true` if the window appears to be a standard application window.
-    /// 
+    ///
     /// # Notes
-    /// 
+    ///
     /// This is a heuristic filter that uses common characteristics of application windows.
     /// While most application windows have non-empty titles, some may temporarily lack a title
     /// during initialization or in edge cases. Such windows will be excluded by this filter.
@@ -414,20 +412,20 @@ impl WindowHandle {
 }
 
 /// Enumerate all top-level windows in the system.
-/// 
+///
 /// This function calls the Windows `EnumWindows` API to retrieve all top-level windows,
 /// including both visible and hidden windows.
-/// 
+///
 /// # Returns
-/// 
+///
 /// A vector of `WindowHandle` objects representing all enumerated windows.
-/// 
+///
 /// # Errors
-/// 
+///
 /// Returns an error if the Windows API call fails.
-/// 
+///
 /// # Examples
-/// 
+///
 /// ```no_run
 /// # use tiling_wm_core::utils::win32::enumerate_windows;
 /// let windows = enumerate_windows().unwrap();
@@ -439,25 +437,25 @@ impl WindowHandle {
 /// ```
 pub fn enumerate_windows() -> anyhow::Result<Vec<WindowHandle>> {
     let mut windows = Vec::new();
-    
+
     unsafe {
         EnumWindows(
             Some(enum_windows_callback),
             LPARAM(&mut windows as *mut Vec<WindowHandle> as isize),
         )?;
     }
-    
+
     Ok(windows)
 }
 
 /// Callback function for EnumWindows.
-/// 
+///
 /// This is an internal callback that gets called for each window during enumeration.
 /// It safely converts the LPARAM back to a mutable reference to our vector and adds
 /// the window handle to it.
-/// 
+///
 /// # Safety
-/// 
+///
 /// This function is marked as unsafe because it dereferences a raw pointer.
 /// However, it's safe in this context because:
 /// - The pointer is created from a valid mutable reference in `enumerate_windows`
@@ -465,7 +463,7 @@ pub fn enumerate_windows() -> anyhow::Result<Vec<WindowHandle>> {
 /// - Windows guarantees that the callback will not be called after `EnumWindows` returns
 ///
 /// ## Safety Requirements for Callers
-/// 
+///
 /// This function must only be called by Windows' `EnumWindows` with an LPARAM
 /// that points to a valid `Vec<WindowHandle>` for the duration of enumeration.
 unsafe extern "system" fn enum_windows_callback(hwnd: HWND, lparam: LPARAM) -> BOOL {
@@ -475,20 +473,20 @@ unsafe extern "system" fn enum_windows_callback(hwnd: HWND, lparam: LPARAM) -> B
 }
 
 /// Enumerate only visible windows.
-/// 
+///
 /// This is a convenience function that filters the results of `enumerate_windows`
 /// to include only windows that are currently visible.
-/// 
+///
 /// # Returns
-/// 
+///
 /// A vector of `WindowHandle` objects representing visible windows.
-/// 
+///
 /// # Errors
-/// 
+///
 /// Returns an error if the Windows API call fails.
-/// 
+///
 /// # Examples
-/// 
+///
 /// ```no_run
 /// # use tiling_wm_core::utils::win32::enumerate_visible_windows;
 /// let visible_windows = enumerate_visible_windows().unwrap();
@@ -496,27 +494,24 @@ unsafe extern "system" fn enum_windows_callback(hwnd: HWND, lparam: LPARAM) -> B
 /// ```
 pub fn enumerate_visible_windows() -> anyhow::Result<Vec<WindowHandle>> {
     let all_windows = enumerate_windows()?;
-    Ok(all_windows
-        .into_iter()
-        .filter(|w| w.is_visible())
-        .collect())
+    Ok(all_windows.into_iter().filter(|w| w.is_visible()).collect())
 }
 
 /// Enumerate only application windows.
-/// 
+///
 /// This function filters windows to include only those that appear to be
 /// standard application windows (visible, with title, no owner).
-/// 
+///
 /// # Returns
-/// 
+///
 /// A vector of `WindowHandle` objects representing application windows.
-/// 
+///
 /// # Errors
-/// 
+///
 /// Returns an error if the Windows API call fails.
-/// 
+///
 /// # Examples
-/// 
+///
 /// ```no_run
 /// # use tiling_wm_core::utils::win32::enumerate_app_windows;
 /// let app_windows = enumerate_app_windows().unwrap();
@@ -535,13 +530,13 @@ pub fn enumerate_app_windows() -> anyhow::Result<Vec<WindowHandle>> {
 }
 
 /// Get the currently focused foreground window.
-/// 
+///
 /// # Returns
-/// 
+///
 /// Some(WindowHandle) if there is a foreground window, None otherwise.
-/// 
+///
 /// # Examples
-/// 
+///
 /// ```no_run
 /// # use tiling_wm_core::utils::win32::get_foreground_window;
 /// if let Some(window) = get_foreground_window() {
@@ -561,14 +556,14 @@ pub fn get_foreground_window() -> Option<WindowHandle> {
 }
 
 /// Filter windows by process ID.
-/// 
+///
 /// # Arguments
-/// 
+///
 /// * `windows` - The vector of windows to filter
 /// * `process_id` - The process ID to match
-/// 
+///
 /// # Returns
-/// 
+///
 /// A vector of windows belonging to the specified process.
 pub fn filter_by_process_id(windows: &[WindowHandle], process_id: u32) -> Vec<WindowHandle> {
     windows
@@ -579,58 +574,50 @@ pub fn filter_by_process_id(windows: &[WindowHandle], process_id: u32) -> Vec<Wi
 }
 
 /// Filter windows by class name.
-/// 
+///
 /// # Arguments
-/// 
+///
 /// * `windows` - The vector of windows to filter
 /// * `class_name` - The class name to match
-/// 
+///
 /// # Returns
-/// 
+///
 /// A vector of windows with the specified class name.
 pub fn filter_by_class_name(windows: &[WindowHandle], class_name: &str) -> Vec<WindowHandle> {
     windows
         .iter()
-        .filter(|w| {
-            w.get_class_name()
-                .map(|c| c == class_name)
-                .unwrap_or(false)
-        })
+        .filter(|w| w.get_class_name().map(|c| c == class_name).unwrap_or(false))
         .copied()
         .collect()
 }
 
 /// Filter windows by title (exact match).
-/// 
+///
 /// # Arguments
-/// 
+///
 /// * `windows` - The vector of windows to filter
 /// * `title` - The title to match
-/// 
+///
 /// # Returns
-/// 
+///
 /// A vector of windows with the specified title.
 pub fn filter_by_title(windows: &[WindowHandle], title: &str) -> Vec<WindowHandle> {
     windows
         .iter()
-        .filter(|w| {
-            w.get_title()
-                .map(|t| t == title)
-                .unwrap_or(false)
-        })
+        .filter(|w| w.get_title().map(|t| t == title).unwrap_or(false))
         .copied()
         .collect()
 }
 
 /// Filter windows by title pattern (case-insensitive substring match).
-/// 
+///
 /// # Arguments
-/// 
+///
 /// * `windows` - The vector of windows to filter
 /// * `pattern` - The pattern to search for in titles
-/// 
+///
 /// # Returns
-/// 
+///
 /// A vector of windows whose titles contain the specified pattern.
 pub fn filter_by_title_pattern(windows: &[WindowHandle], pattern: &str) -> Vec<WindowHandle> {
     let pattern_lower = pattern.to_lowercase();
@@ -724,7 +711,10 @@ mod win32_tests {
         let windows = result.unwrap();
         // Verify that all returned windows are actually visible
         for window in &windows {
-            assert!(window.is_visible(), "All enumerated windows should be visible");
+            assert!(
+                window.is_visible(),
+                "All enumerated windows should be visible"
+            );
         }
         println!("Found {} visible windows", windows.len());
     }
@@ -737,7 +727,10 @@ mod win32_tests {
         let windows = result.unwrap();
         // Verify that all returned windows pass the app window filter
         for window in &windows {
-            assert!(window.is_app_window(), "All enumerated windows should be app windows");
+            assert!(
+                window.is_app_window(),
+                "All enumerated windows should be app windows"
+            );
         }
         println!("Found {} app windows", windows.len());
     }
@@ -789,9 +782,11 @@ mod win32_tests {
                 let rect_result = window.get_rect();
                 assert!(rect_result.is_ok(), "get_rect should succeed");
 
-                println!("Tested window: '{}' (class: '{}')", 
-                    title_result.unwrap(), 
-                    class_result.unwrap());
+                println!(
+                    "Tested window: '{}' (class: '{}')",
+                    title_result.unwrap(),
+                    class_result.unwrap()
+                );
             }
         }
     }
@@ -806,7 +801,7 @@ mod win32_tests {
                 let _is_maximized = window.is_maximized();
                 let _parent = window.get_parent();
                 let _owner = window.get_owner();
-                
+
                 println!("Window state queries succeeded");
             }
         }
@@ -819,15 +814,18 @@ mod win32_tests {
             if let Some(first_window) = windows.first() {
                 let pid = first_window.get_process_id();
                 let filtered = filter_by_process_id(&windows, pid);
-                
+
                 // Should have at least one window (the one we got the PID from)
-                assert!(!filtered.is_empty(), "Should find at least one window for the PID");
-                
+                assert!(
+                    !filtered.is_empty(),
+                    "Should find at least one window for the PID"
+                );
+
                 // All filtered windows should have the same PID
                 for window in &filtered {
                     assert_eq!(window.get_process_id(), pid);
                 }
-                
+
                 println!("Found {} windows for PID {}", filtered.len(), pid);
             }
         }
@@ -841,17 +839,24 @@ mod win32_tests {
                 if let Ok(class_name) = first_window.get_class_name() {
                     if !class_name.is_empty() {
                         let filtered = filter_by_class_name(&windows, &class_name);
-                        
+
                         // Should have at least one window
-                        assert!(!filtered.is_empty(), "Should find at least one window for the class");
-                        
+                        assert!(
+                            !filtered.is_empty(),
+                            "Should find at least one window for the class"
+                        );
+
                         // All filtered windows should have the same class name
                         for window in &filtered {
                             let wclass = window.get_class_name().unwrap_or_default();
                             assert_eq!(wclass, class_name);
                         }
-                        
-                        println!("Found {} windows for class '{}'", filtered.len(), class_name);
+
+                        println!(
+                            "Found {} windows for class '{}'",
+                            filtered.len(),
+                            class_name
+                        );
                     }
                 }
             }
@@ -866,10 +871,13 @@ mod win32_tests {
                 if let Ok(title) = first_window.get_title() {
                     if !title.is_empty() {
                         let filtered = filter_by_title(&windows, &title);
-                        
+
                         // Should have at least one window
-                        assert!(!filtered.is_empty(), "Should find at least one window for the title");
-                        
+                        assert!(
+                            !filtered.is_empty(),
+                            "Should find at least one window for the title"
+                        );
+
                         println!("Found {} windows with title '{}'", filtered.len(), title);
                     }
                 }
@@ -889,11 +897,18 @@ mod win32_tests {
                         let pattern = title.split_whitespace().next().unwrap_or("");
                         if !pattern.is_empty() {
                             let filtered = filter_by_title_pattern(&windows, pattern);
-                            
+
                             // Should have at least one window (the one we got the pattern from)
-                            assert!(!filtered.is_empty(), "Should find at least one window for the pattern");
-                            
-                            println!("Found {} windows matching pattern '{}'", filtered.len(), pattern);
+                            assert!(
+                                !filtered.is_empty(),
+                                "Should find at least one window for the pattern"
+                            );
+
+                            println!(
+                                "Found {} windows matching pattern '{}'",
+                                filtered.len(),
+                                pattern
+                            );
                             break;
                         }
                     }
@@ -909,7 +924,7 @@ mod win32_tests {
         // Create a dummy window handle just to verify the methods compile and exist
         let hwnd = HWND(0);
         let handle = WindowHandle::from_hwnd(hwnd);
-        
+
         // Just verify these methods exist and compile
         // We don't call them because they would fail on an invalid handle
         let _can_call_show = || handle.show(SW_SHOW);
@@ -925,18 +940,19 @@ mod win32_tests {
     #[test]
     fn test_is_app_window() {
         if let Ok(windows) = enumerate_windows() {
-            let app_windows: Vec<_> = windows.iter()
-                .filter(|w| w.is_app_window())
-                .collect();
-            
+            let app_windows: Vec<_> = windows.iter().filter(|w| w.is_app_window()).collect();
+
             // Verify each app window meets the criteria
             for window in app_windows {
                 // Must be visible
                 assert!(window.is_visible(), "App window should be visible");
-                
+
                 // Should not have an owner
-                assert!(window.get_owner().is_none(), "App window should not have an owner");
-                
+                assert!(
+                    window.get_owner().is_none(),
+                    "App window should not have an owner"
+                );
+
                 // Should have a title
                 if let Ok(title) = window.get_title() {
                     assert!(!title.is_empty(), "App window should have a title");
@@ -951,23 +967,19 @@ mod win32_tests {
         // This test demonstrates a typical workflow
         let result = enumerate_windows();
         assert!(result.is_ok(), "Should be able to enumerate windows");
-        
+
         let all_windows = result.unwrap();
         println!("\n=== Window Enumeration Integration Test ===");
         println!("Total windows: {}", all_windows.len());
-        
+
         // Filter visible windows
-        let visible_windows: Vec<_> = all_windows.iter()
-            .filter(|w| w.is_visible())
-            .collect();
+        let visible_windows: Vec<_> = all_windows.iter().filter(|w| w.is_visible()).collect();
         println!("Visible windows: {}", visible_windows.len());
-        
+
         // Filter app windows
-        let app_windows: Vec<_> = all_windows.iter()
-            .filter(|w| w.is_app_window())
-            .collect();
+        let app_windows: Vec<_> = all_windows.iter().filter(|w| w.is_app_window()).collect();
         println!("App windows: {}", app_windows.len());
-        
+
         // Print some example windows
         println!("\nExample app windows (up to 5):");
         for (i, window) in app_windows.iter().take(5).enumerate() {
