@@ -171,9 +171,14 @@ Phase 3 is considered complete when:
    }
    
    unsafe fn get_internal_manager() -> Result<IVirtualDesktopManagerInternal> {
-       // Implementation to get IVirtualDesktopManagerInternal
-       // This requires creating ImmersiveShell service and querying for the interface
-       todo!("Implement internal manager retrieval")
+       // NOTE: This requires reverse-engineered COM interfaces for IVirtualDesktopManagerInternal
+       // Implementation steps:
+       // 1. CoCreateInstance with CLSID_ImmersiveShell
+       // 2. Query for IServiceProvider interface
+       // 3. QueryService with IID_IVirtualDesktopManagerInternal
+       // Reference implementations: VirtualDesktopAccessor, windows-desktop-switcher
+       // This is a placeholder - actual implementation requires the reverse-engineered IIDs
+       anyhow::bail!("IVirtualDesktopManagerInternal requires reverse-engineered COM interfaces")
    }
    ```
 
@@ -1409,21 +1414,6 @@ cargo test -p tiling-wm-core workspace::manager
 
 ---
 
-### Continue with remaining tasks in next response due to length...
-
-Let me know if you'd like me to continue with the rest of Phase 3 tasks (Week 11-12, completion checklist, deliverables, etc.) or if you'd like any adjustments to what I've created so far.
-
-The document follows the pattern from Phase 1 and 2 with:
-- Detailed week-by-week breakdown
-- Specific task objectives and files
-- Complete code examples
-- Acceptance criteria
-- Testing requirements
-- Validation commands
-- Manual testing procedures
-
-Would you like me to continue writing the rest of the document?
-
 #### Task 3.7: Implement Window-to-Workspace Management
 
 **Objective:** Implement functions to add, remove, and move windows between workspaces.
@@ -2311,9 +2301,12 @@ impl WorkspaceManager {
             
             // Parse Virtual Desktop ID if present
             if let Some(vd_id_str) = ws_state.virtual_desktop_id {
-                // Parse GUID from string
-                // Note: Simplified - actual implementation would parse properly
-                workspace.virtual_desktop_id = None; // TODO: Parse GUID
+                // Parse GUID from Debug format string (e.g., "{12345678-...}")
+                // Implementation note: Use uuid crate or parse manually
+                // Example: let guid = uuid::Uuid::parse_str(&vd_id_str).ok()
+                //                    .map(|u| windows::core::GUID::from_u128(u.as_u128()));
+                // For now, skip GUID restoration as VDs may have changed since save
+                workspace.virtual_desktop_id = None;
             }
             
             // Note: Windows are not restored here because HWNDs are not persistent
