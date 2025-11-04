@@ -221,11 +221,11 @@ impl VirtualDesktopManager {
     /// Get all Virtual Desktop IDs
     ///
     /// Returns a vector of GUIDs, one for each virtual desktop.
+    /// If the internal manager is not available, returns an empty vector.
     ///
     /// # Errors
     ///
     /// Returns an error if:
-    /// - The internal manager is not available
     /// - The COM calls fail
     /// - Desktop enumeration fails
     pub fn get_desktop_ids(&self) -> anyhow::Result<Vec<GUID>> {
@@ -345,19 +345,19 @@ impl VirtualDesktopManager {
         anyhow::bail!("Virtual Desktop Manager is only available on Windows")
     }
 
-    pub fn get_desktop_ids(&self) -> anyhow::Result<Vec<u128>> {
+    pub fn get_desktop_ids(&self) -> anyhow::Result<Vec<[u8; 16]>> {
         anyhow::bail!("Virtual Desktop Manager is only available on Windows")
     }
 
-    pub fn get_current_desktop_id(&self) -> anyhow::Result<u128> {
+    pub fn get_current_desktop_id(&self) -> anyhow::Result<[u8; 16]> {
         anyhow::bail!("Virtual Desktop Manager is only available on Windows")
     }
 
-    pub fn is_window_on_current_desktop(&self, _hwnd: isize) -> anyhow::Result<bool> {
+    pub fn is_window_on_current_desktop(&self, _hwnd: *mut std::ffi::c_void) -> anyhow::Result<bool> {
         anyhow::bail!("Virtual Desktop Manager is only available on Windows")
     }
 
-    pub fn get_window_desktop_id(&self, _hwnd: isize) -> anyhow::Result<u128> {
+    pub fn get_window_desktop_id(&self, _hwnd: *mut std::ffi::c_void) -> anyhow::Result<[u8; 16]> {
         anyhow::bail!("Virtual Desktop Manager is only available on Windows")
     }
 }
