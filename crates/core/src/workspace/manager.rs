@@ -306,16 +306,16 @@ impl WorkspaceManager {
             for i in 0..self.config.default_count {
                 let ws_id = self.next_id;
                 self.next_id += 1;
-                
+
                 let name = if i < self.config.names.len() {
                     self.config.names[i].clone()
                 } else {
                     ws_id.to_string()
                 };
-                
+
                 let workspace = Workspace::new(ws_id, name, *monitor_id, *area);
                 self.workspaces.insert(ws_id, workspace);
-                
+
                 if *monitor_id == 0 && i == 0 {
                     self.active_workspace = ws_id;
                     if let Some(ws) = self.workspaces.get_mut(&ws_id) {
@@ -324,60 +324,65 @@ impl WorkspaceManager {
                 }
             }
         }
-        
+
         if self.vd_manager.is_some() {
             self.sync_with_virtual_desktops()?;
         }
-        
+
         Ok(())
     }
-    
+
     /// Create a new workspace
     pub fn create_workspace(&mut self, name: String, monitor: usize, area: Rect) -> usize {
         let id = self.next_id;
         self.next_id += 1;
-        
+
         let mut workspace = Workspace::new(id, name, monitor, area);
-        
+
         if let Some(ref vd_manager) = self.vd_manager {
             if let Ok(vd_id) = vd_manager.create_desktop() {
                 workspace.virtual_desktop_id = Some(vd_id);
             }
         }
-        
+
         self.workspaces.insert(id, workspace);
         id
     }
-    
+
     /// Delete a workspace (moves windows to fallback workspace)
-    pub fn delete_workspace(&mut self, workspace_id: usize, fallback_id: usize) -> anyhow::Result<()> {
+    pub fn delete_workspace(
+        &mut self,
+        workspace_id: usize,
+        fallback_id: usize,
+    ) -> anyhow::Result<()> {
         if workspace_id == fallback_id {
             anyhow::bail!("Cannot delete workspace into itself");
         }
-        
+
         if self.workspaces.len() <= 1 {
             anyhow::bail!("Cannot delete the last workspace");
         }
-        
+
         if !self.workspaces.contains_key(&workspace_id) {
             anyhow::bail!("Workspace {} does not exist", workspace_id);
         }
-        
+
         if !self.workspaces.contains_key(&fallback_id) {
             anyhow::bail!("Fallback workspace {} does not exist", fallback_id);
         }
-        
+
         // Move all windows to fallback workspace
-        let windows_to_move: Vec<isize> = self.workspaces
+        let windows_to_move: Vec<isize> = self
+            .workspaces
             .get(&workspace_id)
             .expect("Workspace should exist after validation")
             .windows
             .clone();
-        
+
         for hwnd in windows_to_move {
             self.move_window_to_workspace(hwnd, workspace_id, fallback_id)?;
         }
-        
+
         // Remove Virtual Desktop if using VD integration
         if let Some(ref vd_manager) = self.vd_manager {
             if let Some(workspace) = self.workspaces.get(&workspace_id) {
@@ -390,18 +395,22 @@ impl WorkspaceManager {
                 }
             }
         }
-        
+
         // Switch to fallback if deleting active workspace
         if self.active_workspace == workspace_id {
             self.switch_to(fallback_id)?;
         }
-        
+
         self.workspaces.remove(&workspace_id);
         Ok(())
     }
-    
+
     /// Rename a workspace
-    pub fn rename_workspace(&mut self, workspace_id: usize, new_name: String) -> anyhow::Result<()> {
+    pub fn rename_workspace(
+        &mut self,
+        workspace_id: usize,
+        new_name: String,
+    ) -> anyhow::Result<()> {
         if let Some(workspace) = self.workspaces.get_mut(&workspace_id) {
             workspace.name = new_name;
             Ok(())
@@ -415,50 +424,54 @@ impl WorkspaceManager {
         if !self.workspaces.contains_key(&workspace_id) {
             anyhow::bail!("Workspace {} does not exist", workspace_id);
         }
-        
+
         if self.active_workspace == workspace_id {
             return Ok(());
         }
-        
-        tracing::info!("Switching from workspace {} to {}", self.active_workspace, workspace_id);
-        
+
+        tracing::info!(
+            "Switching from workspace {} to {}",
+            self.active_workspace,
+            workspace_id
+        );
+
         // Hide windows from current workspace
         if let Some(current) = self.workspaces.get_mut(&self.active_workspace) {
             current.mark_inactive();
-            
+
             #[cfg(target_os = "windows")]
             {
                 for &hwnd in &current.windows {
                     unsafe {
-                        use windows::Win32::UI::WindowsAndMessaging::*;
                         use windows::Win32::Foundation::HWND;
+                        use windows::Win32::UI::WindowsAndMessaging::*;
                         ShowWindow(HWND(hwnd), SW_HIDE);
                     }
                 }
             }
         }
-        
+
         // Show windows from target workspace
         if let Some(target) = self.workspaces.get_mut(&workspace_id) {
             target.mark_active();
-            
+
             #[cfg(target_os = "windows")]
             {
                 for &hwnd in &target.windows {
                     unsafe {
-                        use windows::Win32::UI::WindowsAndMessaging::*;
                         use windows::Win32::Foundation::HWND;
+                        use windows::Win32::UI::WindowsAndMessaging::*;
                         ShowWindow(HWND(hwnd), SW_SHOW);
                     }
                 }
-                
+
                 // Apply layout geometry if tree exists
                 if let Some(ref tree) = target.tree {
                     tree.apply_layout(0, 0)?;
                 }
             }
         }
-        
+
         // Switch Virtual Desktop if enabled
         if let Some(ref vd_manager) = self.vd_manager {
             if let Some(workspace) = self.workspaces.get(&workspace_id) {
@@ -467,49 +480,59 @@ impl WorkspaceManager {
                 }
             }
         }
-        
+
         self.active_workspace = workspace_id;
         Ok(())
     }
-    
+
     /// Switch to the next workspace
     pub fn switch_to_next(&mut self) -> anyhow::Result<()> {
-        let current_monitor = self.workspaces
+        let current_monitor = self
+            .workspaces
             .get(&self.active_workspace)
             .map(|ws| ws.monitor)
             .unwrap_or(0);
-        
-        let mut monitor_workspaces: Vec<usize> = self.workspaces
+
+        let mut monitor_workspaces: Vec<usize> = self
+            .workspaces
             .values()
             .filter(|ws| ws.monitor == current_monitor)
             .map(|ws| ws.id)
             .collect();
         monitor_workspaces.sort();
-        
-        if let Some(current_idx) = monitor_workspaces.iter().position(|&id| id == self.active_workspace) {
+
+        if let Some(current_idx) = monitor_workspaces
+            .iter()
+            .position(|&id| id == self.active_workspace)
+        {
             let next_idx = (current_idx + 1) % monitor_workspaces.len();
             let next_id = monitor_workspaces[next_idx];
             self.switch_to(next_id)?;
         }
-        
+
         Ok(())
     }
-    
+
     /// Switch to the previous workspace
     pub fn switch_to_previous(&mut self) -> anyhow::Result<()> {
-        let current_monitor = self.workspaces
+        let current_monitor = self
+            .workspaces
             .get(&self.active_workspace)
             .map(|ws| ws.monitor)
             .unwrap_or(0);
-        
-        let mut monitor_workspaces: Vec<usize> = self.workspaces
+
+        let mut monitor_workspaces: Vec<usize> = self
+            .workspaces
             .values()
             .filter(|ws| ws.monitor == current_monitor)
             .map(|ws| ws.id)
             .collect();
         monitor_workspaces.sort();
-        
-        if let Some(current_idx) = monitor_workspaces.iter().position(|&id| id == self.active_workspace) {
+
+        if let Some(current_idx) = monitor_workspaces
+            .iter()
+            .position(|&id| id == self.active_workspace)
+        {
             let prev_idx = if current_idx == 0 {
                 monitor_workspaces.len() - 1
             } else {
@@ -518,32 +541,38 @@ impl WorkspaceManager {
             let prev_id = monitor_workspaces[prev_idx];
             self.switch_to(prev_id)?;
         }
-        
+
         Ok(())
     }
-    
+
     /// Switch to a workspace by index on the current monitor (1-based)
     pub fn switch_to_index(&mut self, index: usize) -> anyhow::Result<()> {
         if index == 0 {
             anyhow::bail!("Workspace index must be >= 1");
         }
-        
-        let current_monitor = self.workspaces
+
+        let current_monitor = self
+            .workspaces
             .get(&self.active_workspace)
             .map(|ws| ws.monitor)
             .unwrap_or(0);
-        
-        let mut monitor_workspaces: Vec<usize> = self.workspaces
+
+        let mut monitor_workspaces: Vec<usize> = self
+            .workspaces
             .values()
             .filter(|ws| ws.monitor == current_monitor)
             .map(|ws| ws.id)
             .collect();
         monitor_workspaces.sort();
-        
+
         if index > monitor_workspaces.len() {
-            anyhow::bail!("Workspace index {} out of range (max: {})", index, monitor_workspaces.len());
+            anyhow::bail!(
+                "Workspace index {} out of range (max: {})",
+                index,
+                monitor_workspaces.len()
+            );
         }
-        
+
         let target_id = monitor_workspaces[index - 1];
         self.switch_to(target_id)
     }
@@ -575,7 +604,7 @@ impl WorkspaceManager {
     fn sync_with_virtual_desktops(&mut self) -> anyhow::Result<()> {
         if let Some(ref vd_manager) = self.vd_manager {
             let vd_ids = vd_manager.get_desktop_ids()?;
-            
+
             // Assign virtual desktop IDs to workspaces that don't have them
             let mut vd_index = 0;
             for workspace in self.workspaces.values_mut() {
@@ -585,7 +614,7 @@ impl WorkspaceManager {
                 }
             }
         }
-        
+
         Ok(())
     }
 }

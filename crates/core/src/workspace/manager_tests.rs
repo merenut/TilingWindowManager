@@ -183,10 +183,10 @@ mod tests {
     fn test_workspace_last_active_timestamp() {
         let rect = Rect::new(0, 0, 1920, 1080);
         let workspace1 = Workspace::new(1, "First".to_string(), 0, rect);
-        
+
         // Wait a tiny bit
         std::thread::sleep(std::time::Duration::from_millis(10));
-        
+
         let workspace2 = Workspace::new(2, "Second".to_string(), 0, rect);
 
         // workspace2 should have a more recent timestamp
@@ -196,19 +196,22 @@ mod tests {
     #[test]
     fn test_workspace_config_serialize_deserialize() {
         let config = WorkspaceConfig::default();
-        
+
         // Serialize to JSON
         let json = serde_json::to_string(&config).expect("Failed to serialize");
-        
+
         // Deserialize back
-        let deserialized: WorkspaceConfig = 
+        let deserialized: WorkspaceConfig =
             serde_json::from_str(&json).expect("Failed to deserialize");
-        
+
         assert_eq!(deserialized.default_count, config.default_count);
         assert_eq!(deserialized.names, config.names);
         assert_eq!(deserialized.persist_state, config.persist_state);
         assert_eq!(deserialized.create_on_demand, config.create_on_demand);
-        assert_eq!(deserialized.use_virtual_desktops, config.use_virtual_desktops);
+        assert_eq!(
+            deserialized.use_virtual_desktops,
+            config.use_virtual_desktops
+        );
     }
 
     #[test]
@@ -254,7 +257,7 @@ mod tests {
         let mut workspace = Workspace::new(1, "Main".to_string(), 0, rect);
 
         assert!(!workspace.visible);
-        
+
         workspace.mark_active();
         assert!(workspace.visible);
     }
@@ -266,7 +269,7 @@ mod tests {
 
         workspace.mark_active();
         assert!(workspace.visible);
-        
+
         workspace.mark_inactive();
         assert!(!workspace.visible);
     }
@@ -277,9 +280,9 @@ mod tests {
         let mut workspace = Workspace::new(1, "Main".to_string(), 0, rect);
 
         let first_timestamp = workspace.last_active;
-        
+
         std::thread::sleep(std::time::Duration::from_millis(10));
-        
+
         workspace.mark_active();
         assert!(workspace.last_active > first_timestamp);
     }
@@ -325,13 +328,13 @@ mod tests {
         manager.initialize(&monitor_areas).unwrap();
 
         assert_eq!(manager.workspace_count(), 3);
-        
+
         let ws1 = manager.get_workspace(1).unwrap();
         assert_eq!(ws1.name, "One");
-        
+
         let ws2 = manager.get_workspace(2).unwrap();
         assert_eq!(ws2.name, "Two");
-        
+
         let ws3 = manager.get_workspace(3).unwrap();
         assert_eq!(ws3.name, "Three");
     }
@@ -377,14 +380,14 @@ mod tests {
         manager.initialize(&monitor_areas).unwrap();
 
         assert_eq!(manager.workspace_count(), 5);
-        
+
         // First two should use custom names
         let ws1 = manager.get_workspace(1).unwrap();
         assert_eq!(ws1.name, "One");
-        
+
         let ws2 = manager.get_workspace(2).unwrap();
         assert_eq!(ws2.name, "Two");
-        
+
         // Rest should use workspace ID as name
         let ws3 = manager.get_workspace(3).unwrap();
         assert_eq!(ws3.name, "3");
@@ -401,7 +404,7 @@ mod tests {
         let id = manager.create_workspace("Test".to_string(), 0, rect);
 
         assert_eq!(manager.workspace_count(), 1);
-        
+
         let ws = manager.get_workspace(id).unwrap();
         assert_eq!(ws.name, "Test");
         assert_eq!(ws.monitor, 0);
@@ -437,7 +440,7 @@ mod tests {
         let mut manager = WorkspaceManager::new(config);
 
         let rect = Rect::new(0, 0, 1920, 1080);
-        
+
         // Create workspaces and collect IDs
         let mut ids = Vec::new();
         for i in 0..10 {
@@ -527,7 +530,10 @@ mod tests {
 
         let result = manager.delete_workspace(id, id);
         assert!(result.is_err());
-        assert!(result.unwrap_err().to_string().contains("Cannot delete workspace into itself"));
+        assert!(result
+            .unwrap_err()
+            .to_string()
+            .contains("Cannot delete workspace into itself"));
     }
 
     #[test]
@@ -563,12 +569,15 @@ mod tests {
 
         let rect = Rect::new(0, 0, 1920, 1080);
         let id1 = manager.create_workspace("Only".to_string(), 0, rect);
-        
+
         // Try to delete the only workspace
         let result = manager.delete_workspace(id1, id1);
         assert!(result.is_err());
-        assert!(result.unwrap_err().to_string().contains("Cannot delete the last workspace"));
-        
+        assert!(result
+            .unwrap_err()
+            .to_string()
+            .contains("Cannot delete the last workspace"));
+
         // Workspace should still exist
         assert_eq!(manager.workspace_count(), 1);
     }
@@ -583,7 +592,7 @@ mod tests {
         manager.initialize(&monitor_areas).unwrap();
 
         let id2 = manager.create_workspace("Second".to_string(), 0, rect);
-        
+
         // First workspace (id=1) should be active
         assert_eq!(manager.active_workspace(), 1);
 
@@ -629,7 +638,11 @@ mod tests {
 
         // IDs should start from 1 and increment
         for i in 1..=10 {
-            assert!(manager.get_workspace(i).is_some(), "Workspace {} should exist", i);
+            assert!(
+                manager.get_workspace(i).is_some(),
+                "Workspace {} should exist",
+                i
+            );
         }
     }
 
@@ -641,11 +654,11 @@ mod tests {
         let rect = Rect::new(0, 0, 1920, 1080);
         let id1 = manager.create_workspace("First".to_string(), 0, rect);
         let id2 = manager.create_workspace("Second".to_string(), 0, rect);
-        
+
         manager.delete_workspace(id1, id2).unwrap();
-        
+
         let id3 = manager.create_workspace("Third".to_string(), 0, rect);
-        
+
         // New workspace should have a higher ID than the deleted ones
         assert!(id3 > id2);
     }
@@ -675,7 +688,9 @@ mod tests {
         assert_eq!(manager.workspace_count(), 4);
 
         // Rename a workspace
-        manager.rename_workspace(new_id, "Renamed".to_string()).unwrap();
+        manager
+            .rename_workspace(new_id, "Renamed".to_string())
+            .unwrap();
         let ws = manager.get_workspace(new_id).unwrap();
         assert_eq!(ws.name, "Renamed");
 
