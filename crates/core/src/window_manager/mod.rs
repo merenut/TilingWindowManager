@@ -23,8 +23,8 @@ pub mod tree;
 #[cfg(test)]
 mod tree_tests;
 
-// DwindleLayout is exported for public API use in later integration tasks
-#[allow(unused_imports)] pub use layout::DwindleLayout;
+// Layout types are exported for public API use in later integration tasks
+#[allow(unused_imports)] pub use layout::{DwindleLayout, MasterLayout};
 pub use tree::{Rect, Split, TreeNode};
 
 use crate::utils::win32::WindowHandle;
