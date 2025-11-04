@@ -1,3 +1,8 @@
+// Note: During Phase 2, some components are not yet fully integrated.
+// Dead code warnings are expected and will be resolved in later phases.
+#![allow(dead_code)]
+#![allow(unused_imports)]
+
 mod event_loop;
 mod utils;
 mod window_manager;
