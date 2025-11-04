@@ -133,15 +133,17 @@ impl FocusManager {
     pub fn focus_window(&mut self, window: &WindowHandle) -> anyhow::Result<()> {
         #[cfg(target_os = "windows")]
         unsafe {
-            // Bring window to foreground
-            SetForegroundWindow(window.hwnd())?;
+            // Restore if minimized first
+            if IsIconic(window.hwnd()).as_bool() {
+                ShowWindow(window.hwnd(), SW_RESTORE);
+            }
 
             // Ensure window is visible
             ShowWindow(window.hwnd(), SW_SHOW);
 
-            // Restore if minimized
-            if IsIconic(window.hwnd()).as_bool() {
-                ShowWindow(window.hwnd(), SW_RESTORE);
+            // Bring window to foreground
+            if !SetForegroundWindow(window.hwnd()).as_bool() {
+                return Err(anyhow::anyhow!("Failed to set window as foreground"));
             }
         }
 
