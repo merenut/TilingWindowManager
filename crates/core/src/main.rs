@@ -1,9 +1,13 @@
+// These modules are not yet used in the binary, but are part of the library API
+#[allow(dead_code, unused_imports)]
 mod window_manager;
+#[allow(dead_code, unused_imports)]
 mod event_loop;
+#[allow(dead_code, unused_imports)]
 mod utils;
 
 use anyhow::Result;
-use tracing::{info, error};
+use tracing::info;
 
 fn main() -> Result<()> {
     // Initialize logging
