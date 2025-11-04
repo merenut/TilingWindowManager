@@ -17,6 +17,7 @@
 //! // The window manager is now ready to manage windows
 //! ```
 
+pub mod focus;
 pub mod layout;
 pub mod tree;
 pub mod window;
@@ -25,6 +26,7 @@ pub mod window;
 mod tree_tests;
 
 // Layout types are exported for public API use in later integration tasks
+pub use focus::{Direction, DirectionalFocus, FocusManager};
 pub use layout::{DwindleLayout, MasterLayout};
 pub use tree::{Rect, Split, TreeNode};
 pub use window::{ManagedWindow, WindowRegistry, WindowState};
