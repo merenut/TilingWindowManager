@@ -17,22 +17,22 @@ fn main() -> anyhow::Result<()> {
     println!("║     Windows Event Loop Demo            ║");
     println!("╚════════════════════════════════════════╝");
     println!();
-    
+
     #[cfg(not(target_os = "windows"))]
     {
         println!("⚠️  This demo requires Windows to run.");
         println!("   The event loop is only functional on Windows platforms.");
         return Ok(());
     }
-    
+
     #[cfg(target_os = "windows")]
     {
-        use tiling_wm_core::event_loop::EventLoop;
         use std::time::Duration;
+        use tiling_wm_core::event_loop::EventLoop;
         println!("📋 Starting event loop...");
-        
+
         let mut event_loop = EventLoop::new();
-        
+
         match event_loop.start() {
             Ok(_) => {
                 println!("✅ Event loop started successfully!");
@@ -48,21 +48,21 @@ fn main() -> anyhow::Result<()> {
                 println!();
                 println!("═══════════════════════════════════════════════════════════");
                 println!();
-                
+
                 let mut event_count = 0;
                 let start_time = std::time::Instant::now();
-                
+
                 loop {
                     // Process Windows messages
                     event_loop.process_messages()?;
-                    
+
                     // Poll for events
                     for event in event_loop.poll_events() {
                         event_count += 1;
                         let elapsed = start_time.elapsed().as_secs();
                         println!("[{:>4}s] [{:>5}] {:?}", elapsed, event_count, event);
                     }
-                    
+
                     // Small sleep to prevent high CPU usage
                     std::thread::sleep(Duration::from_millis(50));
                 }

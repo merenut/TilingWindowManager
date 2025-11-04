@@ -33,18 +33,15 @@
 // Windows-specific implementation
 #[cfg(target_os = "windows")]
 mod windows_impl {
-    use std::sync::mpsc::{channel, Sender, Receiver, TryRecvError};
+    use std::sync::mpsc::{channel, Receiver, Sender, TryRecvError};
     use windows::{
         Win32::Foundation::HWND,
+        Win32::UI::Accessibility::{SetWinEventHook, UnhookWinEvent, HWINEVENTHOOK},
         Win32::UI::WindowsAndMessaging::{
-            DispatchMessageW, MSG, PeekMessageW, PM_REMOVE,
-            WINEVENT_OUTOFCONTEXT,
-            EVENT_OBJECT_CREATE, EVENT_OBJECT_DESTROY, EVENT_OBJECT_SHOW, EVENT_OBJECT_HIDE,
-            EVENT_SYSTEM_MOVESIZEEND, EVENT_SYSTEM_FOREGROUND, EVENT_SYSTEM_MINIMIZESTART,
-            EVENT_SYSTEM_MINIMIZEEND, EVENT_OBJECT_LOCATIONCHANGE,
-        },
-        Win32::UI::Accessibility::{
-            SetWinEventHook, UnhookWinEvent, HWINEVENTHOOK,
+            DispatchMessageW, PeekMessageW, EVENT_OBJECT_CREATE, EVENT_OBJECT_DESTROY,
+            EVENT_OBJECT_HIDE, EVENT_OBJECT_LOCATIONCHANGE, EVENT_OBJECT_SHOW,
+            EVENT_SYSTEM_FOREGROUND, EVENT_SYSTEM_MINIMIZEEND, EVENT_SYSTEM_MINIMIZESTART,
+            EVENT_SYSTEM_MOVESIZEEND, MSG, PM_REMOVE, WINEVENT_OUTOFCONTEXT,
         },
     };
 
@@ -112,7 +109,9 @@ mod windows_impl {
             EVENT_OBJECT_DESTROY => WindowEvent::WindowDestroyed(hwnd),
             EVENT_OBJECT_SHOW => WindowEvent::WindowShown(hwnd),
             EVENT_OBJECT_HIDE => WindowEvent::WindowHidden(hwnd),
-            EVENT_SYSTEM_MOVESIZEEND | EVENT_OBJECT_LOCATIONCHANGE => WindowEvent::WindowMoved(hwnd),
+            EVENT_SYSTEM_MOVESIZEEND | EVENT_OBJECT_LOCATIONCHANGE => {
+                WindowEvent::WindowMoved(hwnd)
+            }
             EVENT_SYSTEM_MINIMIZESTART => WindowEvent::WindowMinimized(hwnd),
             EVENT_SYSTEM_MINIMIZEEND => WindowEvent::WindowRestored(hwnd),
             EVENT_SYSTEM_FOREGROUND => WindowEvent::WindowFocused(hwnd),
@@ -184,11 +183,14 @@ mod windows_impl {
                         for h in self.hooks.drain(..) {
                             let _ = UnhookWinEvent(h);
                         }
-                        
+
                         // Clear the global sender pointer
                         EVENT_SENDER_PTR = std::ptr::null();
-                        
-                        return Err(anyhow::anyhow!("Failed to set event hook for event {}", event_min));
+
+                        return Err(anyhow::anyhow!(
+                            "Failed to set event hook for event {}",
+                            event_min
+                        ));
                     }
 
                     self.hooks.push(hook);
@@ -223,12 +225,10 @@ mod windows_impl {
 
         /// Poll for pending events from the event queue.
         pub fn poll_events(&self) -> impl Iterator<Item = WindowEvent> + '_ {
-            std::iter::from_fn(move || {
-                match self.event_rx.try_recv() {
-                    Ok(event) => Some(event),
-                    Err(TryRecvError::Empty) => None,
-                    Err(TryRecvError::Disconnected) => None,
-                }
+            std::iter::from_fn(move || match self.event_rx.try_recv() {
+                Ok(event) => Some(event),
+                Err(TryRecvError::Empty) => None,
+                Err(TryRecvError::Disconnected) => None,
             })
         }
 
@@ -237,13 +237,7 @@ mod windows_impl {
             unsafe {
                 let mut msg = MSG::default();
                 // Use PeekMessage pattern for non-blocking behavior
-                while PeekMessageW(
-                    &mut msg,
-                    None,
-                    0,
-                    0,
-                    PM_REMOVE,
-                ).as_bool() {
+                while PeekMessageW(&mut msg, None, 0, 0, PM_REMOVE).as_bool() {
                     DispatchMessageW(&msg);
                 }
             }
@@ -300,12 +294,10 @@ mod stub_impl {
         }
 
         pub fn poll_events(&self) -> impl Iterator<Item = WindowEvent> + '_ {
-            std::iter::from_fn(move || {
-                match self.event_rx.try_recv() {
-                    Ok(event) => Some(event),
-                    Err(TryRecvError::Empty) => None,
-                    Err(TryRecvError::Disconnected) => None,
-                }
+            std::iter::from_fn(move || match self.event_rx.try_recv() {
+                Ok(event) => Some(event),
+                Err(TryRecvError::Empty) => None,
+                Err(TryRecvError::Disconnected) => None,
             })
         }
 
@@ -347,13 +339,21 @@ mod tests {
     fn test_event_loop_start_stop() {
         let mut event_loop = EventLoop::new();
         assert!(!event_loop.is_running());
-        
+
         let result = event_loop.start();
-        assert!(result.is_ok(), "Failed to start event loop: {:?}", result.err());
+        assert!(
+            result.is_ok(),
+            "Failed to start event loop: {:?}",
+            result.err()
+        );
         assert!(event_loop.is_running());
-        
+
         let result = event_loop.stop();
-        assert!(result.is_ok(), "Failed to stop event loop: {:?}", result.err());
+        assert!(
+            result.is_ok(),
+            "Failed to stop event loop: {:?}",
+            result.err()
+        );
         assert!(!event_loop.is_running());
     }
 
@@ -361,14 +361,14 @@ mod tests {
     #[cfg(target_os = "windows")]
     fn test_event_loop_double_start() {
         let mut event_loop = EventLoop::new();
-        
+
         event_loop.start().unwrap();
         assert!(event_loop.is_running());
-        
+
         // Starting again should be a no-op
         event_loop.start().unwrap();
         assert!(event_loop.is_running());
-        
+
         event_loop.stop().unwrap();
     }
 
@@ -377,10 +377,10 @@ mod tests {
     fn test_event_loop_double_stop() {
         let mut event_loop = EventLoop::new();
         event_loop.start().unwrap();
-        
+
         event_loop.stop().unwrap();
         assert!(!event_loop.is_running());
-        
+
         // Stopping again should be a no-op
         event_loop.stop().unwrap();
         assert!(!event_loop.is_running());
@@ -399,10 +399,10 @@ mod tests {
         let mut event_loop = EventLoop::new();
         event_loop.start().unwrap();
         assert!(event_loop.is_running());
-        
+
         // Drop should automatically clean up hooks
         drop(event_loop);
-        
+
         // If we reach here without crashing, cleanup worked
     }
 
@@ -421,26 +421,26 @@ mod tests {
     fn test_window_events_detection() {
         let mut event_loop = EventLoop::new();
         event_loop.start().expect("Failed to start event loop");
-        
+
         println!("Event loop started. Please open/close/focus windows for 10 seconds...");
-        
+
         let start_time = std::time::Instant::now();
         let mut event_count = 0;
-        
+
         while start_time.elapsed().as_secs() < 10 {
             event_loop.process_messages().unwrap();
-            
+
             for event in event_loop.poll_events() {
                 println!("Detected event: {:?}", event);
                 event_count += 1;
             }
-            
+
             std::thread::sleep(std::time::Duration::from_millis(100));
         }
-        
+
         println!("Detected {} events total", event_count);
         assert!(event_count > 0, "Should have detected at least one event");
-        
+
         event_loop.stop().unwrap();
     }
 }

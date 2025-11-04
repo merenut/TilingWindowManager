@@ -22,7 +22,7 @@
 //! let windows = root.collect();
 //! ```
 
-use serde::{Serialize, Deserialize};
+use serde::{Deserialize, Serialize};
 use windows::Win32::Foundation::HWND;
 
 /// Represents a rectangle with position and dimensions.
@@ -60,7 +60,12 @@ impl Rect {
     /// assert_eq!(rect.height, 1080);
     /// ```
     pub fn new(x: i32, y: i32, width: i32, height: i32) -> Self {
-        Rect { x, y, width, height }
+        Rect {
+            x,
+            y,
+            width,
+            height,
+        }
     }
 
     /// Calculate the area of the rectangle.
@@ -324,7 +329,13 @@ impl TreeNode {
     /// # Returns
     ///
     /// A new container node.
-    pub fn new_container(split: Split, left: TreeNode, right: TreeNode, rect: Rect, ratio: f32) -> Self {
+    pub fn new_container(
+        split: Split,
+        left: TreeNode,
+        right: TreeNode,
+        rect: Rect,
+        ratio: f32,
+    ) -> Self {
         TreeNode {
             rect,
             node_type: NodeType::Container {
@@ -409,10 +420,10 @@ impl TreeNode {
                     Split::Horizontal => rect.split_horizontal(0.5),
                     Split::Vertical => rect.split_vertical(0.5),
                 };
-                
+
                 let left = TreeNode::new_leaf(old_hwnd, left_rect);
                 let right = TreeNode::new_leaf(hwnd, right_rect);
-                
+
                 TreeNode::new_container(split, left, right, rect, 0.5)
             }
             NodeType::Container {
@@ -423,7 +434,8 @@ impl TreeNode {
             } => {
                 // Insert into the right child and recalculate all rectangles
                 let new_right = right.insert(hwnd, split);
-                let new_tree = TreeNode::new_container(current_split, *left, new_right, rect, ratio);
+                let new_tree =
+                    TreeNode::new_container(current_split, *left, new_right, rect, ratio);
                 // Recalculate all rectangles in the tree to ensure proper layout
                 new_tree.with_rect(rect)
             }
@@ -464,7 +476,9 @@ impl TreeNode {
                         match right.remove(hwnd) {
                             Some(new_right) => {
                                 // Window not found in right or right still has nodes
-                                Some(TreeNode::new_container(split, new_left, new_right, self.rect, ratio))
+                                Some(TreeNode::new_container(
+                                    split, new_left, new_right, self.rect, ratio,
+                                ))
                             }
                             None => {
                                 // Right child was removed, promote left child
@@ -503,10 +517,10 @@ impl TreeNode {
                     Split::Horizontal => rect.split_horizontal(ratio),
                     Split::Vertical => rect.split_vertical(ratio),
                 };
-                
+
                 let new_left = left.with_rect(left_rect);
                 let new_right = right.with_rect(right_rect);
-                
+
                 TreeNode::new_container(split, new_left, new_right, rect, ratio)
             }
         }
@@ -533,10 +547,10 @@ impl TreeNode {
                     Split::Horizontal => self.rect.split_horizontal(new_ratio),
                     Split::Vertical => self.rect.split_vertical(new_ratio),
                 };
-                
+
                 let new_left = left.with_rect(left_rect).rebalance();
                 let new_right = right.with_rect(right_rect).rebalance();
-                
+
                 TreeNode::new_container(split, new_left, new_right, self.rect, new_ratio)
             }
         }
@@ -602,8 +616,8 @@ impl TreeNode {
     /// This function is only available on Windows platforms.
     #[cfg(target_os = "windows")]
     pub fn apply_layout(&self, gaps_in: i32, gaps_out: i32) -> anyhow::Result<()> {
-        use windows::Win32::UI::WindowsAndMessaging::{SetWindowPos, SWP_NOZORDER, SWP_NOACTIVATE};
-        
+        use windows::Win32::UI::WindowsAndMessaging::{SetWindowPos, SWP_NOACTIVATE, SWP_NOZORDER};
+
         for (hwnd, rect) in self.collect() {
             // Apply gaps to the rectangle
             // gaps_in creates space between windows (apply half gap on each side)
@@ -615,7 +629,7 @@ impl TreeNode {
                 rect.width - gaps_in,
                 rect.height - gaps_in,
             );
-            
+
             // Position and size the window
             unsafe {
                 SetWindowPos(
@@ -629,7 +643,7 @@ impl TreeNode {
                 )?;
             }
         }
-        
+
         Ok(())
     }
 
