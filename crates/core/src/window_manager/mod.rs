@@ -17,11 +17,13 @@
 //! // The window manager is now ready to manage windows
 //! ```
 
+pub mod layout;
 pub mod tree;
 
 #[cfg(test)]
 mod tree_tests;
 
+pub use layout::DwindleLayout;
 pub use tree::{Rect, Split, TreeNode};
 
 use crate::utils::win32::WindowHandle;
