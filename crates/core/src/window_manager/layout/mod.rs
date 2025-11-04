@@ -4,5 +4,7 @@
 //! are positioned and sized on the screen.
 
 pub mod dwindle;
+pub mod master;
 
 pub use dwindle::DwindleLayout;
+pub use master::MasterLayout;
