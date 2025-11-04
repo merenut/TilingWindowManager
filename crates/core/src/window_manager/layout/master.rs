@@ -220,7 +220,8 @@ impl MasterLayout {
     ) -> anyhow::Result<()> {
         // Calculate master and stack areas
         let master_width = (area.width as f32 * self.master_factor) as i32;
-        let stack_width = area.width - master_width;
+        // Ensure stack_width is non-negative
+        let stack_width = (area.width - master_width).max(0);
 
         let master_area = Rect::new(area.x, area.y, master_width, area.height);
         let stack_area = Rect::new(
@@ -269,11 +270,16 @@ impl MasterLayout {
             
             // Apply inner gaps (half gap on each side creates space between windows)
             let half_gap = self.gaps_in / 2;
+            
+            // Ensure dimensions remain positive after applying gaps
+            let final_width = (rect.width - self.gaps_in).max(1);
+            let final_height = (rect.height - self.gaps_in).max(1);
+            
             let final_rect = Rect::new(
                 rect.x + half_gap,
                 rect.y + half_gap,
-                rect.width - self.gaps_in,
-                rect.height - self.gaps_in,
+                final_width,
+                final_height,
             );
             
             self.position_window(hwnd, final_rect)?;
