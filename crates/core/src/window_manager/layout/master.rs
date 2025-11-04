@@ -152,15 +152,17 @@ impl MasterLayout {
             return Ok(());
         }
 
-        // Single window: take full area with outer gaps only
+        // Apply outer gaps to the entire area
+        let work_area = Rect::new(
+            area.x + self.gaps_out,
+            area.y + self.gaps_out,
+            area.width - 2 * self.gaps_out,
+            area.height - 2 * self.gaps_out,
+        );
+
+        // Single window: take full work area
         if windows.len() == 1 {
-            let rect = Rect::new(
-                area.x + self.gaps_out,
-                area.y + self.gaps_out,
-                area.width - 2 * self.gaps_out,
-                area.height - 2 * self.gaps_out,
-            );
-            self.position_window(windows[0], rect)?;
+            self.position_window(windows[0], work_area)?;
             return Ok(());
         }
 
@@ -170,13 +172,13 @@ impl MasterLayout {
 
         if stack_count == 0 {
             // All windows are masters: split them vertically
-            self.tile_masters_only(&windows[..master_count], area)?;
+            self.tile_masters_only(&windows[..master_count], work_area)?;
         } else {
             // Split between master and stack
             self.tile_master_stack(
                 &windows[..master_count],
                 &windows[master_count..],
-                area,
+                work_area,
             )?;
         }
 
@@ -242,25 +244,36 @@ impl MasterLayout {
     /// # Arguments
     ///
     /// * `windows` - Slice of window handles to tile
-    /// * `area` - The area to tile within
+    /// * `area` - The area to tile within (outer gaps already applied)
     #[cfg(target_os = "windows")]
     fn tile_vertical(&self, windows: &[HWND], area: Rect) -> anyhow::Result<()> {
         if windows.is_empty() {
             return Ok(());
         }
 
-        let height_per_window = area.height / windows.len() as i32;
+        let window_count = windows.len() as i32;
+        let height_per_window = area.height / window_count;
+        let remaining_height = area.height % window_count;
 
         for (i, &hwnd) in windows.iter().enumerate() {
             let y = area.y + (i as i32 * height_per_window);
-            let rect = Rect::new(area.x, y, area.width, height_per_window);
             
-            // Apply gaps
+            // For the last window, add any remaining height from integer division
+            let height = if i == windows.len() - 1 {
+                height_per_window + remaining_height
+            } else {
+                height_per_window
+            };
+            
+            let rect = Rect::new(area.x, y, area.width, height);
+            
+            // Apply inner gaps (half gap on each side creates space between windows)
+            let half_gap = self.gaps_in / 2;
             let final_rect = Rect::new(
-                rect.x + self.gaps_out,
-                rect.y + self.gaps_out,
-                rect.width - 2 * self.gaps_out - self.gaps_in / 2,
-                rect.height - 2 * self.gaps_out - self.gaps_in / 2,
+                rect.x + half_gap,
+                rect.y + half_gap,
+                rect.width - self.gaps_in,
+                rect.height - self.gaps_in,
             );
             
             self.position_window(hwnd, final_rect)?;
