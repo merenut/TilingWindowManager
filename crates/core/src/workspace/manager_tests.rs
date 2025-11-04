@@ -1723,4 +1723,138 @@ mod tests {
         let ws3 = manager.get_workspace(3).unwrap();
         assert!(!ws3.visible);
     }
+
+    // Test DPI scaling
+
+    #[test]
+    fn test_dpi_scaling() {
+        let mut rect = Rect::new(0, 0, 1920, 1080);
+        WorkspaceManager::apply_dpi_scaling(&mut rect, 1.5);
+
+        assert_eq!(rect.width, 2880);
+        assert_eq!(rect.height, 1620);
+    }
+
+    #[test]
+    fn test_dpi_scaling_no_change_for_1_0() {
+        let mut rect = Rect::new(100, 200, 1920, 1080);
+        let original_rect = rect;
+        WorkspaceManager::apply_dpi_scaling(&mut rect, 1.0);
+
+        // Should not change when scale is 1.0
+        assert_eq!(rect, original_rect);
+    }
+
+    #[test]
+    fn test_dpi_scaling_position() {
+        let mut rect = Rect::new(100, 200, 1920, 1080);
+        WorkspaceManager::apply_dpi_scaling(&mut rect, 2.0);
+
+        assert_eq!(rect.x, 200);
+        assert_eq!(rect.y, 400);
+        assert_eq!(rect.width, 3840);
+        assert_eq!(rect.height, 2160);
+    }
+
+    #[test]
+    fn test_dpi_scaling_fractional() {
+        let mut rect = Rect::new(0, 0, 1000, 500);
+        WorkspaceManager::apply_dpi_scaling(&mut rect, 1.25);
+
+        assert_eq!(rect.width, 1250);
+        assert_eq!(rect.height, 625);
+    }
+
+    #[test]
+    fn test_dpi_scaling_small_change_ignored() {
+        let mut rect = Rect::new(100, 200, 1920, 1080);
+        let original_rect = rect;
+        
+        // Scale factor very close to 1.0 should be ignored (threshold is 0.01)
+        WorkspaceManager::apply_dpi_scaling(&mut rect, 1.005);
+        
+        assert_eq!(rect, original_rect);
+    }
+
+    #[test]
+    fn test_dpi_scaling_threshold() {
+        let mut rect = Rect::new(0, 0, 1000, 1000);
+        
+        // Scale factor just above threshold should apply
+        WorkspaceManager::apply_dpi_scaling(&mut rect, 1.02);
+        
+        assert_eq!(rect.width, 1020);
+        assert_eq!(rect.height, 1020);
+    }
+
+    #[test]
+    fn test_update_dpi_scaling() {
+        use crate::window_manager::monitor::{MonitorInfo, MonitorManager};
+
+        let config = WorkspaceConfig::default();
+        let mut workspace_manager = WorkspaceManager::new(config);
+
+        let rect = Rect::new(0, 0, 1920, 1080);
+        let monitor_areas = vec![(0, rect)];
+        workspace_manager.initialize(&monitor_areas).unwrap();
+
+        let mut monitor_manager = MonitorManager::new();
+        let monitor = MonitorInfo::new(0, 0, "Primary".to_string(), rect, rect, 1.5);
+        monitor_manager.add_monitor(monitor);
+
+        // Update DPI scaling should succeed
+        let result = workspace_manager.update_dpi_scaling(&monitor_manager);
+        assert!(result.is_ok());
+    }
+
+    #[test]
+    fn test_update_dpi_scaling_multiple_monitors() {
+        use crate::window_manager::monitor::{MonitorInfo, MonitorManager};
+
+        let config = WorkspaceConfig {
+            default_count: 2,
+            names: vec!["A".to_string(), "B".to_string()],
+            persist_state: true,
+            create_on_demand: false,
+            use_virtual_desktops: false,
+        };
+        let mut workspace_manager = WorkspaceManager::new(config);
+
+        let rect1 = Rect::new(0, 0, 1920, 1080);
+        let rect2 = Rect::new(1920, 0, 2560, 1440);
+        let monitor_areas = vec![(0, rect1), (1, rect2)];
+        workspace_manager.initialize(&monitor_areas).unwrap();
+
+        let mut monitor_manager = MonitorManager::new();
+        let monitor1 = MonitorInfo::new(0, 0, "Primary".to_string(), rect1, rect1, 1.0);
+        let monitor2 = MonitorInfo::new(1, 1, "Secondary".to_string(), rect2, rect2, 1.5);
+        monitor_manager.add_monitor(monitor1);
+        monitor_manager.add_monitor(monitor2);
+
+        // Update DPI scaling for both monitors should succeed
+        let result = workspace_manager.update_dpi_scaling(&monitor_manager);
+        assert!(result.is_ok());
+    }
+
+    #[test]
+    #[ignore] // Requires multi-monitor setup with different DPI
+    fn test_mixed_dpi_workspaces() {
+        // Manual testing on system with multiple monitors at different DPI
+        // 
+        // Test steps:
+        // 1. Set up a multi-monitor system with different DPI settings
+        //    - Monitor 1: 1920x1080 at 100% scaling (DPI scale = 1.0)
+        //    - Monitor 2: 3840x2160 at 150% scaling (DPI scale = 1.5)
+        // 2. Create workspaces on both monitors
+        // 3. Add windows to workspaces
+        // 4. Call update_dpi_scaling()
+        // 5. Verify windows are positioned correctly on each monitor
+        // 6. Change DPI settings and verify geometry updates
+        //
+        // Expected results:
+        // - Windows on Monitor 1 should maintain 1920x1080 dimensions
+        // - Windows on Monitor 2 should use DPI-scaled dimensions
+        // - Window positions should be correct for each monitor
+        // - Dynamic DPI changes should trigger geometry updates
+    }
 }

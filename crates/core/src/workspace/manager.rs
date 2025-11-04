@@ -877,4 +877,74 @@ impl WorkspaceManager {
         
         Ok(())
     }
+    
+    /// Update workspace geometries based on DPI scaling.
+    ///
+    /// This method iterates through all workspaces and updates their geometry
+    /// to match the DPI-aware coordinates from the monitor manager. After updating
+    /// the workspace area, it re-applies the geometry to all windows in the workspace.
+    ///
+    /// # Arguments
+    ///
+    /// * `monitor_manager` - Reference to the monitor manager with current monitor DPI information
+    ///
+    /// # Returns
+    ///
+    /// `Ok(())` on success, or an error if the operation fails.
+    ///
+    /// # Example
+    ///
+    /// ```ignore
+    /// // After detecting a DPI change event
+    /// workspace_manager.update_dpi_scaling(&monitor_manager)?;
+    /// ```
+    pub fn update_dpi_scaling(
+        &mut self,
+        monitor_manager: &crate::window_manager::monitor::MonitorManager,
+    ) -> anyhow::Result<()> {
+        for workspace in self.workspaces.values_mut() {
+            if let Some(monitor) = monitor_manager.get_by_id(workspace.monitor) {
+                // Update workspace area with DPI-aware coordinates
+                if let Some(ref mut tree) = workspace.tree {
+                    tree.set_rect(monitor.work_area);
+                    
+                    // Re-apply geometry to all windows
+                    tree.apply_layout(0, 0)?;
+                }
+            }
+        }
+        
+        Ok(())
+    }
+    
+    /// Apply DPI scaling to a rect.
+    ///
+    /// This method scales the coordinates and dimensions of a rectangle based on
+    /// a DPI scale factor. It only applies scaling if the scale factor is significantly
+    /// different from 1.0 (threshold: 0.01).
+    ///
+    /// # Arguments
+    ///
+    /// * `rect` - Mutable reference to the rectangle to scale
+    /// * `dpi_scale` - DPI scale factor (1.0 = 100%, 1.5 = 150%, 2.0 = 200%)
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// use tiling_wm_core::workspace::WorkspaceManager;
+    /// use tiling_wm_core::window_manager::Rect;
+    ///
+    /// let mut rect = Rect::new(0, 0, 1920, 1080);
+    /// WorkspaceManager::apply_dpi_scaling(&mut rect, 1.5);
+    /// assert_eq!(rect.width, 2880);
+    /// assert_eq!(rect.height, 1620);
+    /// ```
+    fn apply_dpi_scaling(rect: &mut crate::window_manager::tree::Rect, dpi_scale: f32) {
+        if (dpi_scale - 1.0).abs() > 0.01 {
+            rect.x = (rect.x as f32 * dpi_scale) as i32;
+            rect.y = (rect.y as f32 * dpi_scale) as i32;
+            rect.width = (rect.width as f32 * dpi_scale) as i32;
+            rect.height = (rect.height as f32 * dpi_scale) as i32;
+        }
+    }
 }
