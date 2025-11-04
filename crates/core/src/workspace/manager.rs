@@ -786,15 +786,14 @@ impl WorkspaceManager {
             anyhow::bail!("Workspace {} does not exist", workspace_id);
         }
         
-        // Collect currently visible workspaces on this monitor
-        let current_on_monitor: Vec<usize> = self.workspaces
+        // Find and hide the currently visible workspace on this monitor (if any)
+        let current_visible = self.workspaces
             .values()
-            .filter(|ws| ws.monitor == monitor_id && ws.visible)
-            .map(|ws| ws.id)
-            .collect();
+            .find(|ws| ws.monitor == monitor_id && ws.visible)
+            .map(|ws| ws.id);
         
-        // Hide all currently visible workspaces on this monitor
-        for ws_id in current_on_monitor {
+        // Hide the currently visible workspace on this monitor
+        if let Some(ws_id) = current_visible {
             if let Some(ws) = self.workspaces.get_mut(&ws_id) {
                 ws.mark_inactive();
                 
@@ -854,12 +853,10 @@ impl WorkspaceManager {
         &mut self,
         monitor_manager: &crate::window_manager::monitor::MonitorManager,
     ) -> anyhow::Result<()> {
-        let monitor_count = monitor_manager.monitors.len();
-        
         // Reassign workspaces from disconnected monitors and update geometries
         for workspace in self.workspaces.values_mut() {
-            if workspace.monitor >= monitor_count {
-                // Monitor was disconnected, move workspace to primary monitor
+            if monitor_manager.get_by_id(workspace.monitor).is_none() {
+                // Monitor was disconnected, move workspace to primary monitor (ID 0)
                 workspace.monitor = 0;
                 
                 // Update tree rectangle if it exists

@@ -1622,8 +1622,13 @@ mod tests {
         let monitor_areas = vec![(0, rect1), (1, rect2)];
         manager.initialize(&monitor_areas).unwrap();
 
-        // Workspace 1 is on monitor 0, workspace 3 is on monitor 1
-        // Try to switch workspace 3 on monitor 0 (should fail)
+        // Verify workspace assignments: workspace 1 on monitor 0, workspace 3 on monitor 1
+        let ws1 = manager.get_workspace(1).unwrap();
+        assert_eq!(ws1.monitor, 0);
+        let ws3 = manager.get_workspace(3).unwrap();
+        assert_eq!(ws3.monitor, 1);
+
+        // Try to switch workspace 3 on monitor 0 (should fail since ws3 is on monitor 1)
         let result = manager.switch_workspace_on_monitor(0, 3);
         assert!(result.is_err());
         assert!(result
