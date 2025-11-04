@@ -884,6 +884,11 @@ impl WorkspaceManager {
     /// to match the DPI-aware coordinates from the monitor manager. After updating
     /// the workspace area, it re-applies the geometry to all windows in the workspace.
     ///
+    /// The method assumes that `monitor.work_area` already contains the correct
+    /// physical pixel coordinates from the Windows API, which automatically accounts
+    /// for the monitor's DPI scaling. The `apply_dpi_scaling` helper function is
+    /// available for cases where manual DPI scaling of rectangles is needed.
+    ///
     /// # Arguments
     ///
     /// * `monitor_manager` - Reference to the monitor manager with current monitor DPI information
@@ -905,6 +910,8 @@ impl WorkspaceManager {
         for workspace in self.workspaces.values_mut() {
             if let Some(monitor) = monitor_manager.get_by_id(workspace.monitor) {
                 // Update workspace area with DPI-aware coordinates
+                // The monitor.work_area is assumed to already be in physical pixels
+                // from the Windows API, accounting for the monitor's DPI scale
                 if let Some(ref mut tree) = workspace.tree {
                     tree.set_rect(monitor.work_area);
                     
@@ -919,9 +926,14 @@ impl WorkspaceManager {
     
     /// Apply DPI scaling to a rect.
     ///
-    /// This method scales the coordinates and dimensions of a rectangle based on
-    /// a DPI scale factor. It only applies scaling if the scale factor is significantly
-    /// different from 1.0 (threshold: 0.01).
+    /// This is a utility method that scales the coordinates and dimensions of a 
+    /// rectangle based on a DPI scale factor. It only applies scaling if the scale 
+    /// factor is significantly different from 1.0 (threshold: 0.01).
+    ///
+    /// This function is provided as a utility and is not used by `update_dpi_scaling`
+    /// because the MonitorManager is expected to provide already-scaled coordinates
+    /// from the Windows API. This function can be used in other contexts where manual
+    /// DPI scaling is needed.
     ///
     /// # Arguments
     ///
