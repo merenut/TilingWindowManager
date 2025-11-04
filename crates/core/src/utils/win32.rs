@@ -101,7 +101,7 @@ impl WindowHandle {
     ///
     /// `true` if the handle is non-null, `false` otherwise.
     pub fn is_valid(&self) -> bool {
-        self.0 .0 != 0
+        self.0.0 != 0
     }
 
     /// Get the window title.
