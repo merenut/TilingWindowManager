@@ -877,4 +877,88 @@ impl WorkspaceManager {
         
         Ok(())
     }
+    
+    /// Update workspace geometries based on DPI scaling.
+    ///
+    /// This method iterates through all workspaces and updates their geometry
+    /// to match the DPI-aware coordinates from the monitor manager. After updating
+    /// the workspace area, it re-applies the geometry to all windows in the workspace.
+    ///
+    /// The method assumes that `monitor.work_area` already contains the correct
+    /// physical pixel coordinates from the Windows API, which automatically accounts
+    /// for the monitor's DPI scaling. The `apply_dpi_scaling` helper function is
+    /// available for cases where manual DPI scaling of rectangles is needed.
+    ///
+    /// # Arguments
+    ///
+    /// * `monitor_manager` - Reference to the monitor manager with current monitor DPI information
+    ///
+    /// # Returns
+    ///
+    /// `Ok(())` on success, or an error if the operation fails.
+    ///
+    /// # Example
+    ///
+    /// ```ignore
+    /// // After detecting a DPI change event
+    /// workspace_manager.update_dpi_scaling(&monitor_manager)?;
+    /// ```
+    pub fn update_dpi_scaling(
+        &mut self,
+        monitor_manager: &crate::window_manager::monitor::MonitorManager,
+    ) -> anyhow::Result<()> {
+        for workspace in self.workspaces.values_mut() {
+            if let Some(monitor) = monitor_manager.get_by_id(workspace.monitor) {
+                // Update workspace area with DPI-aware coordinates
+                // The monitor.work_area is assumed to already be in physical pixels
+                // from the Windows API, accounting for the monitor's DPI scale
+                if let Some(ref mut tree) = workspace.tree {
+                    tree.set_rect(monitor.work_area);
+                    
+                    // Re-apply geometry to all windows
+                    tree.apply_layout(0, 0)?;
+                }
+            }
+        }
+        
+        Ok(())
+    }
+    
+    /// Apply DPI scaling to a rect.
+    ///
+    /// This is a utility method that scales the coordinates and dimensions of a 
+    /// rectangle based on a DPI scale factor. It only applies scaling if the scale 
+    /// factor is significantly different from 1.0 (threshold: 0.01).
+    ///
+    /// This function is provided as a utility and is not used by `update_dpi_scaling`
+    /// because the MonitorManager is expected to provide already-scaled coordinates
+    /// from the Windows API. This function can be used in other contexts where manual
+    /// DPI scaling is needed.
+    ///
+    /// # Arguments
+    ///
+    /// * `rect` - Mutable reference to the rectangle to scale
+    /// * `dpi_scale` - DPI scale factor (1.0 = 100%, 1.5 = 150%, 2.0 = 200%)
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// use tiling_wm_core::workspace::WorkspaceManager;
+    /// use tiling_wm_core::window_manager::tree::Rect;
+    ///
+    /// let mut rect = Rect::new(0, 0, 1920, 1080);
+    /// WorkspaceManager::apply_dpi_scaling(&mut rect, 1.5);
+    /// assert_eq!(rect.width, 2880);
+    /// assert_eq!(rect.height, 1620);
+    /// ```
+    pub fn apply_dpi_scaling(rect: &mut crate::window_manager::tree::Rect, dpi_scale: f32) {
+        // Clamp dpi_scale to a safe range to prevent overflow and nonsensical geometry
+        let scale = dpi_scale.clamp(0.5, 5.0);
+        if (scale - 1.0).abs() > 0.01 {
+            rect.x = (rect.x as f32 * scale) as i32;
+            rect.y = (rect.y as f32 * scale) as i32;
+            rect.width = (rect.width as f32 * scale) as i32;
+            rect.height = (rect.height as f32 * scale) as i32;
+        }
+    }
 }
