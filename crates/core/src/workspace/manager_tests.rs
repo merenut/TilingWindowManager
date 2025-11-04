@@ -684,4 +684,351 @@ mod tests {
         assert_eq!(manager.workspace_count(), 3);
         assert!(manager.get_workspace(new_id).is_none());
     }
+
+    // Test workspace switching
+
+    #[test]
+    fn test_workspace_manager_switch_to() {
+        let config = WorkspaceConfig::default();
+        let mut manager = WorkspaceManager::new(config);
+
+        let rect = Rect::new(0, 0, 1920, 1080);
+        let monitor_areas = vec![(0, rect)];
+        manager.initialize(&monitor_areas).unwrap();
+
+        // Should start on workspace 1
+        assert_eq!(manager.active_workspace(), 1);
+        let ws1 = manager.get_workspace(1).unwrap();
+        assert!(ws1.visible);
+
+        // Switch to workspace 2
+        manager.switch_to(2).unwrap();
+        assert_eq!(manager.active_workspace(), 2);
+
+        // Check workspace 1 is now inactive
+        let ws1 = manager.get_workspace(1).unwrap();
+        assert!(!ws1.visible);
+
+        // Check workspace 2 is now active
+        let ws2 = manager.get_workspace(2).unwrap();
+        assert!(ws2.visible);
+    }
+
+    #[test]
+    fn test_workspace_manager_switch_to_same_workspace() {
+        let config = WorkspaceConfig::default();
+        let mut manager = WorkspaceManager::new(config);
+
+        let rect = Rect::new(0, 0, 1920, 1080);
+        let monitor_areas = vec![(0, rect)];
+        manager.initialize(&monitor_areas).unwrap();
+
+        // Should start on workspace 1
+        assert_eq!(manager.active_workspace(), 1);
+
+        // Switch to same workspace should succeed and do nothing
+        manager.switch_to(1).unwrap();
+        assert_eq!(manager.active_workspace(), 1);
+    }
+
+    #[test]
+    fn test_workspace_manager_switch_to_nonexistent() {
+        let config = WorkspaceConfig::default();
+        let mut manager = WorkspaceManager::new(config);
+
+        let rect = Rect::new(0, 0, 1920, 1080);
+        let monitor_areas = vec![(0, rect)];
+        manager.initialize(&monitor_areas).unwrap();
+
+        // Try to switch to non-existent workspace
+        let result = manager.switch_to(999);
+        assert!(result.is_err());
+        assert!(result.unwrap_err().to_string().contains("does not exist"));
+
+        // Should still be on workspace 1
+        assert_eq!(manager.active_workspace(), 1);
+    }
+
+    #[test]
+    fn test_workspace_manager_switch_to_next() {
+        let config = WorkspaceConfig {
+            default_count: 3,
+            names: vec!["1".to_string(), "2".to_string(), "3".to_string()],
+            persist_state: true,
+            create_on_demand: false,
+            use_virtual_desktops: false,
+        };
+        let mut manager = WorkspaceManager::new(config);
+
+        let rect = Rect::new(0, 0, 1920, 1080);
+        let monitor_areas = vec![(0, rect)];
+        manager.initialize(&monitor_areas).unwrap();
+
+        // Should start on workspace 1
+        assert_eq!(manager.active_workspace(), 1);
+
+        // Switch to next (should go to 2)
+        manager.switch_to_next().unwrap();
+        assert_eq!(manager.active_workspace(), 2);
+
+        // Switch to next again (should go to 3)
+        manager.switch_to_next().unwrap();
+        assert_eq!(manager.active_workspace(), 3);
+
+        // Switch to next again (should wrap to 1)
+        manager.switch_to_next().unwrap();
+        assert_eq!(manager.active_workspace(), 1);
+    }
+
+    #[test]
+    fn test_workspace_manager_switch_to_previous() {
+        let config = WorkspaceConfig {
+            default_count: 3,
+            names: vec!["1".to_string(), "2".to_string(), "3".to_string()],
+            persist_state: true,
+            create_on_demand: false,
+            use_virtual_desktops: false,
+        };
+        let mut manager = WorkspaceManager::new(config);
+
+        let rect = Rect::new(0, 0, 1920, 1080);
+        let monitor_areas = vec![(0, rect)];
+        manager.initialize(&monitor_areas).unwrap();
+
+        // Should start on workspace 1
+        assert_eq!(manager.active_workspace(), 1);
+
+        // Switch to previous (should wrap to 3)
+        manager.switch_to_previous().unwrap();
+        assert_eq!(manager.active_workspace(), 3);
+
+        // Switch to previous again (should go to 2)
+        manager.switch_to_previous().unwrap();
+        assert_eq!(manager.active_workspace(), 2);
+
+        // Switch to previous again (should go to 1)
+        manager.switch_to_previous().unwrap();
+        assert_eq!(manager.active_workspace(), 1);
+    }
+
+    #[test]
+    fn test_workspace_manager_switch_to_index() {
+        let config = WorkspaceConfig {
+            default_count: 5,
+            names: (1..=5).map(|i| i.to_string()).collect(),
+            persist_state: true,
+            create_on_demand: false,
+            use_virtual_desktops: false,
+        };
+        let mut manager = WorkspaceManager::new(config);
+
+        let rect = Rect::new(0, 0, 1920, 1080);
+        let monitor_areas = vec![(0, rect)];
+        manager.initialize(&monitor_areas).unwrap();
+
+        // Should start on workspace 1
+        assert_eq!(manager.active_workspace(), 1);
+
+        // Switch to index 3 (should go to workspace 3)
+        manager.switch_to_index(3).unwrap();
+        assert_eq!(manager.active_workspace(), 3);
+
+        // Switch to index 1 (should go to workspace 1)
+        manager.switch_to_index(1).unwrap();
+        assert_eq!(manager.active_workspace(), 1);
+
+        // Switch to index 5 (should go to workspace 5)
+        manager.switch_to_index(5).unwrap();
+        assert_eq!(manager.active_workspace(), 5);
+    }
+
+    #[test]
+    fn test_workspace_manager_switch_to_index_zero() {
+        let config = WorkspaceConfig::default();
+        let mut manager = WorkspaceManager::new(config);
+
+        let rect = Rect::new(0, 0, 1920, 1080);
+        let monitor_areas = vec![(0, rect)];
+        manager.initialize(&monitor_areas).unwrap();
+
+        // Try to switch to index 0 (should fail)
+        let result = manager.switch_to_index(0);
+        assert!(result.is_err());
+        assert!(result.unwrap_err().to_string().contains("must be >= 1"));
+    }
+
+    #[test]
+    fn test_workspace_manager_switch_to_index_out_of_range() {
+        let config = WorkspaceConfig {
+            default_count: 3,
+            names: vec!["1".to_string(), "2".to_string(), "3".to_string()],
+            persist_state: true,
+            create_on_demand: false,
+            use_virtual_desktops: false,
+        };
+        let mut manager = WorkspaceManager::new(config);
+
+        let rect = Rect::new(0, 0, 1920, 1080);
+        let monitor_areas = vec![(0, rect)];
+        manager.initialize(&monitor_areas).unwrap();
+
+        // Try to switch to index beyond range (should fail)
+        let result = manager.switch_to_index(10);
+        assert!(result.is_err());
+        assert!(result.unwrap_err().to_string().contains("out of range"));
+    }
+
+    #[test]
+    fn test_workspace_manager_switch_per_monitor() {
+        let config = WorkspaceConfig {
+            default_count: 2,
+            names: vec!["A".to_string(), "B".to_string()],
+            persist_state: true,
+            create_on_demand: false,
+            use_virtual_desktops: false,
+        };
+        let mut manager = WorkspaceManager::new(config);
+
+        let rect1 = Rect::new(0, 0, 1920, 1080);
+        let rect2 = Rect::new(1920, 0, 1920, 1080);
+        let monitor_areas = vec![(0, rect1), (1, rect2)];
+        manager.initialize(&monitor_areas).unwrap();
+
+        // Should have 4 workspaces total (2 per monitor)
+        assert_eq!(manager.workspace_count(), 4);
+
+        // First workspace on monitor 0 should be active
+        assert_eq!(manager.active_workspace(), 1);
+        let ws1 = manager.get_workspace(1).unwrap();
+        assert_eq!(ws1.monitor, 0);
+
+        // Switch to next should stay on monitor 0
+        manager.switch_to_next().unwrap();
+        let active_ws = manager.get_workspace(manager.active_workspace()).unwrap();
+        assert_eq!(active_ws.monitor, 0);
+
+        // Switch to next again should wrap back to first workspace on monitor 0
+        manager.switch_to_next().unwrap();
+        let active_ws = manager.get_workspace(manager.active_workspace()).unwrap();
+        assert_eq!(active_ws.monitor, 0);
+        assert_eq!(manager.active_workspace(), 1);
+    }
+
+    #[test]
+    fn test_workspace_manager_switch_to_index_per_monitor() {
+        let config = WorkspaceConfig {
+            default_count: 3,
+            names: vec!["A".to_string(), "B".to_string(), "C".to_string()],
+            persist_state: true,
+            create_on_demand: false,
+            use_virtual_desktops: false,
+        };
+        let mut manager = WorkspaceManager::new(config);
+
+        let rect1 = Rect::new(0, 0, 1920, 1080);
+        let rect2 = Rect::new(1920, 0, 1920, 1080);
+        let monitor_areas = vec![(0, rect1), (1, rect2)];
+        manager.initialize(&monitor_areas).unwrap();
+
+        // Should have 6 workspaces total (3 per monitor)
+        assert_eq!(manager.workspace_count(), 6);
+
+        // First workspace on monitor 0 should be active
+        assert_eq!(manager.active_workspace(), 1);
+
+        // Switch to index 2 should go to second workspace on monitor 0
+        manager.switch_to_index(2).unwrap();
+        let active_ws = manager.get_workspace(manager.active_workspace()).unwrap();
+        assert_eq!(active_ws.monitor, 0);
+
+        // Switch to index 3 should go to third workspace on monitor 0
+        manager.switch_to_index(3).unwrap();
+        let active_ws = manager.get_workspace(manager.active_workspace()).unwrap();
+        assert_eq!(active_ws.monitor, 0);
+
+        // Try to switch to index 4 (doesn't exist on monitor 0)
+        let result = manager.switch_to_index(4);
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_workspace_manager_switch_updates_visibility() {
+        let config = WorkspaceConfig {
+            default_count: 3,
+            names: (1..=3).map(|i| i.to_string()).collect(),
+            persist_state: true,
+            create_on_demand: false,
+            use_virtual_desktops: false,
+        };
+        let mut manager = WorkspaceManager::new(config);
+
+        let rect = Rect::new(0, 0, 1920, 1080);
+        let monitor_areas = vec![(0, rect)];
+        manager.initialize(&monitor_areas).unwrap();
+
+        // Workspace 1 should be visible
+        let ws1 = manager.get_workspace(1).unwrap();
+        assert!(ws1.visible);
+
+        // Workspace 2 should not be visible
+        let ws2 = manager.get_workspace(2).unwrap();
+        assert!(!ws2.visible);
+
+        // Switch to workspace 2
+        manager.switch_to(2).unwrap();
+
+        // Now workspace 1 should not be visible
+        let ws1 = manager.get_workspace(1).unwrap();
+        assert!(!ws1.visible);
+
+        // And workspace 2 should be visible
+        let ws2 = manager.get_workspace(2).unwrap();
+        assert!(ws2.visible);
+
+        // Workspace 3 should still not be visible
+        let ws3 = manager.get_workspace(3).unwrap();
+        assert!(!ws3.visible);
+    }
+
+    #[test]
+    fn test_workspace_manager_switch_multiple_times() {
+        let config = WorkspaceConfig {
+            default_count: 4,
+            names: (1..=4).map(|i| i.to_string()).collect(),
+            persist_state: true,
+            create_on_demand: false,
+            use_virtual_desktops: false,
+        };
+        let mut manager = WorkspaceManager::new(config);
+
+        let rect = Rect::new(0, 0, 1920, 1080);
+        let monitor_areas = vec![(0, rect)];
+        manager.initialize(&monitor_areas).unwrap();
+
+        assert_eq!(manager.active_workspace(), 1);
+
+        // Switch through all workspaces
+        manager.switch_to(2).unwrap();
+        assert_eq!(manager.active_workspace(), 2);
+
+        manager.switch_to(3).unwrap();
+        assert_eq!(manager.active_workspace(), 3);
+
+        manager.switch_to(4).unwrap();
+        assert_eq!(manager.active_workspace(), 4);
+
+        // Switch back to 1
+        manager.switch_to(1).unwrap();
+        assert_eq!(manager.active_workspace(), 1);
+
+        // Use switch_to_next to cycle
+        for i in 2..=4 {
+            manager.switch_to_next().unwrap();
+            assert_eq!(manager.active_workspace(), i);
+        }
+
+        // Wrap around
+        manager.switch_to_next().unwrap();
+        assert_eq!(manager.active_workspace(), 1);
+    }
 }

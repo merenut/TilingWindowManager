@@ -410,30 +410,142 @@ impl WorkspaceManager {
         }
     }
 
-    /// Switch to a workspace
-    fn switch_to(&mut self, workspace_id: usize) -> anyhow::Result<()> {
+    /// Switch to a different workspace
+    pub fn switch_to(&mut self, workspace_id: usize) -> anyhow::Result<()> {
         if !self.workspaces.contains_key(&workspace_id) {
             anyhow::bail!("Workspace {} does not exist", workspace_id);
         }
-
-        // Mark current workspace as inactive (if it exists)
+        
+        if self.active_workspace == workspace_id {
+            return Ok(());
+        }
+        
+        tracing::info!("Switching from workspace {} to {}", self.active_workspace, workspace_id);
+        
+        // Hide windows from current workspace
         if let Some(current) = self.workspaces.get_mut(&self.active_workspace) {
             current.mark_inactive();
+            
+            #[cfg(target_os = "windows")]
+            {
+                for &hwnd in &current.windows {
+                    unsafe {
+                        use windows::Win32::UI::WindowsAndMessaging::*;
+                        use windows::Win32::Foundation::HWND;
+                        ShowWindow(HWND(hwnd), SW_HIDE);
+                    }
+                }
+            }
         }
-
-        // Switch active workspace
+        
+        // Show windows from target workspace
+        if let Some(target) = self.workspaces.get_mut(&workspace_id) {
+            target.mark_active();
+            
+            #[cfg(target_os = "windows")]
+            {
+                for &hwnd in &target.windows {
+                    unsafe {
+                        use windows::Win32::UI::WindowsAndMessaging::*;
+                        use windows::Win32::Foundation::HWND;
+                        ShowWindow(HWND(hwnd), SW_SHOW);
+                    }
+                }
+                
+                // Apply layout geometry if tree exists
+                if let Some(ref tree) = target.tree {
+                    tree.apply_layout(0, 0)?;
+                }
+            }
+        }
+        
+        // Switch Virtual Desktop if enabled
+        if let Some(ref vd_manager) = self.vd_manager {
+            if let Some(workspace) = self.workspaces.get(&workspace_id) {
+                if let Some(vd_id) = workspace.virtual_desktop_id {
+                    vd_manager.switch_desktop_by_id(&vd_id)?;
+                }
+            }
+        }
+        
         self.active_workspace = workspace_id;
-
-        // Mark new workspace as active
-        // We already validated workspace_id exists, so this should succeed
-        if let Some(new_workspace) = self.workspaces.get_mut(&workspace_id) {
-            new_workspace.mark_active();
-        } else {
-            // This should never happen due to the check above, but handle it safely
-            anyhow::bail!("Internal error: workspace disappeared during switch");
-        }
-
         Ok(())
+    }
+    
+    /// Switch to the next workspace
+    pub fn switch_to_next(&mut self) -> anyhow::Result<()> {
+        let current_monitor = self.workspaces
+            .get(&self.active_workspace)
+            .map(|ws| ws.monitor)
+            .unwrap_or(0);
+        
+        let mut monitor_workspaces: Vec<usize> = self.workspaces
+            .values()
+            .filter(|ws| ws.monitor == current_monitor)
+            .map(|ws| ws.id)
+            .collect();
+        monitor_workspaces.sort();
+        
+        if let Some(current_idx) = monitor_workspaces.iter().position(|&id| id == self.active_workspace) {
+            let next_idx = (current_idx + 1) % monitor_workspaces.len();
+            let next_id = monitor_workspaces[next_idx];
+            self.switch_to(next_id)?;
+        }
+        
+        Ok(())
+    }
+    
+    /// Switch to the previous workspace
+    pub fn switch_to_previous(&mut self) -> anyhow::Result<()> {
+        let current_monitor = self.workspaces
+            .get(&self.active_workspace)
+            .map(|ws| ws.monitor)
+            .unwrap_or(0);
+        
+        let mut monitor_workspaces: Vec<usize> = self.workspaces
+            .values()
+            .filter(|ws| ws.monitor == current_monitor)
+            .map(|ws| ws.id)
+            .collect();
+        monitor_workspaces.sort();
+        
+        if let Some(current_idx) = monitor_workspaces.iter().position(|&id| id == self.active_workspace) {
+            let prev_idx = if current_idx == 0 {
+                monitor_workspaces.len() - 1
+            } else {
+                current_idx - 1
+            };
+            let prev_id = monitor_workspaces[prev_idx];
+            self.switch_to(prev_id)?;
+        }
+        
+        Ok(())
+    }
+    
+    /// Switch to a workspace by index on the current monitor (1-based)
+    pub fn switch_to_index(&mut self, index: usize) -> anyhow::Result<()> {
+        if index == 0 {
+            anyhow::bail!("Workspace index must be >= 1");
+        }
+        
+        let current_monitor = self.workspaces
+            .get(&self.active_workspace)
+            .map(|ws| ws.monitor)
+            .unwrap_or(0);
+        
+        let mut monitor_workspaces: Vec<usize> = self.workspaces
+            .values()
+            .filter(|ws| ws.monitor == current_monitor)
+            .map(|ws| ws.id)
+            .collect();
+        monitor_workspaces.sort();
+        
+        if index > monitor_workspaces.len() {
+            anyhow::bail!("Workspace index {} out of range (max: {})", index, monitor_workspaces.len());
+        }
+        
+        let target_id = monitor_workspaces[index - 1];
+        self.switch_to(target_id)
     }
 
     /// Move a window from one workspace to another
