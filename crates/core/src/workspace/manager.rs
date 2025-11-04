@@ -466,6 +466,7 @@ impl WorkspaceManager {
                 }
 
                 // Apply layout geometry if tree exists
+                // TODO: Make gap values configurable via WorkspaceConfig
                 if let Some(ref tree) = target.tree {
                     tree.apply_layout(0, 0)?;
                 }
@@ -485,6 +486,18 @@ impl WorkspaceManager {
         Ok(())
     }
 
+    /// Get sorted list of workspace IDs on a specific monitor
+    fn get_monitor_workspaces(&self, monitor: usize) -> Vec<usize> {
+        let mut workspaces: Vec<usize> = self
+            .workspaces
+            .values()
+            .filter(|ws| ws.monitor == monitor)
+            .map(|ws| ws.id)
+            .collect();
+        workspaces.sort();
+        workspaces
+    }
+
     /// Switch to the next workspace
     pub fn switch_to_next(&mut self) -> anyhow::Result<()> {
         let current_monitor = self
@@ -493,13 +506,7 @@ impl WorkspaceManager {
             .map(|ws| ws.monitor)
             .unwrap_or(0);
 
-        let mut monitor_workspaces: Vec<usize> = self
-            .workspaces
-            .values()
-            .filter(|ws| ws.monitor == current_monitor)
-            .map(|ws| ws.id)
-            .collect();
-        monitor_workspaces.sort();
+        let monitor_workspaces = self.get_monitor_workspaces(current_monitor);
 
         if let Some(current_idx) = monitor_workspaces
             .iter()
@@ -521,13 +528,7 @@ impl WorkspaceManager {
             .map(|ws| ws.monitor)
             .unwrap_or(0);
 
-        let mut monitor_workspaces: Vec<usize> = self
-            .workspaces
-            .values()
-            .filter(|ws| ws.monitor == current_monitor)
-            .map(|ws| ws.id)
-            .collect();
-        monitor_workspaces.sort();
+        let monitor_workspaces = self.get_monitor_workspaces(current_monitor);
 
         if let Some(current_idx) = monitor_workspaces
             .iter()
@@ -557,13 +558,7 @@ impl WorkspaceManager {
             .map(|ws| ws.monitor)
             .unwrap_or(0);
 
-        let mut monitor_workspaces: Vec<usize> = self
-            .workspaces
-            .values()
-            .filter(|ws| ws.monitor == current_monitor)
-            .map(|ws| ws.id)
-            .collect();
-        monitor_workspaces.sort();
+        let monitor_workspaces = self.get_monitor_workspaces(current_monitor);
 
         if index > monitor_workspaces.len() {
             anyhow::bail!(
