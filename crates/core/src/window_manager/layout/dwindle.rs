@@ -275,7 +275,7 @@ impl DwindleLayout {
         // contains_window() method that can short-circuit would be more efficient.
         // However, for typical window counts (< 20), this is acceptable.
         let window_exists = tree.collect().iter().any(|(h, _)| *h == hwnd);
-        
+
         if !window_exists {
             return Ok(false);
         }

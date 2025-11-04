@@ -64,12 +64,12 @@ fn main() -> Result<()> {
     // The executor is used to perform all window operations via the command system
     let executor = CommandExecutor::new();
     info!("Command executor initialized and ready");
-    
+
     // Demonstrate command system integration
     demonstrate_command_system(&executor, &mut wm)?;
-    
+
     info!("Starting main event loop with command system integration...");
-    
+
     // Main event loop with command executor
     run_event_loop(&mut wm, &mut event_loop, &executor, &running)?;
 
@@ -101,48 +101,48 @@ fn demonstrate_command_system(_executor: &CommandExecutor, wm: &mut WindowManage
     info!("==============================================");
     info!("Command System Integration Examples:");
     info!("==============================================");
-    
+
     // Example 1: Layout switching commands
     info!("Available layout commands:");
     info!("  - Command::SetLayoutDwindle  (smart tiling layout)");
     info!("  - Command::SetLayoutMaster   (master-stack layout)");
-    
+
     // Example 2: Window manipulation commands
     info!("Available window commands:");
     info!("  - Command::ToggleFloating    (toggle tiled/floating)");
     info!("  - Command::ToggleFullscreen  (toggle fullscreen)");
     info!("  - Command::CloseActiveWindow (close focused window)");
     info!("  - Command::MinimizeActive    (minimize focused window)");
-    
+
     // Example 3: Focus navigation commands
     info!("Available focus commands:");
     info!("  - Command::FocusLeft/Right/Up/Down");
     info!("  - Command::FocusPrevious/Next (Alt-Tab style)");
-    
+
     // Example 4: Master layout adjustment commands
     info!("Available master layout commands:");
     info!("  - Command::IncreaseMasterCount/DecreaseMasterCount");
     info!("  - Command::IncreaseMasterFactor/DecreaseMasterFactor");
-    
+
     // Example 5: Workspace commands
     info!("Available workspace commands:");
     info!("  - Command::SwitchWorkspace(id)");
     info!("  - Command::MoveToWorkspace(id)");
     info!("  - Command::MoveToWorkspaceAndFollow(id)");
-    
+
     info!("==============================================");
     info!("Note: Commands will be bound to hotkeys in Phase 3");
     info!("For now, they can be executed programmatically");
     info!("==============================================");
-    
+
     // Demonstrate actual command execution with logging
     info!("Demonstrating command execution with current layout...");
     let current_layout = wm.get_current_layout();
     info!("Current layout: {:?}", current_layout);
-    
+
     // All command executions are logged by the CommandExecutor
     // See commands.rs for detailed execution logging
-    
+
     Ok(())
 }
 
@@ -204,7 +204,7 @@ fn run_event_loop(
     running: &Arc<AtomicBool>,
 ) -> Result<()> {
     info!("Event loop running - processing window events via command system");
-    
+
     while running.load(Ordering::SeqCst) {
         // Process Windows messages
         if let Err(e) = event_loop.process_messages() {
@@ -249,7 +249,7 @@ fn handle_window_event(
                     .get_title()
                     .unwrap_or_else(|_| String::from("<unknown>"));
                 info!("EVENT: Managing new window: {} (HWND: {:?})", title, hwnd);
-                
+
                 // Use window manager directly for window lifecycle management
                 // The command system focuses on user-initiated operations
                 wm.manage_window(window)?;

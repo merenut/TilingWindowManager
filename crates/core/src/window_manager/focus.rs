@@ -609,11 +609,8 @@ mod tests {
 
         let candidates = vec![(1, left), (2, right)];
 
-        let result = DirectionalFocus::find_window_in_direction(
-            &current,
-            Direction::Left,
-            &candidates,
-        );
+        let result =
+            DirectionalFocus::find_window_in_direction(&current, Direction::Left, &candidates);
 
         assert_eq!(result, Some(1));
     }
@@ -626,11 +623,8 @@ mod tests {
 
         let candidates = vec![(1, left), (2, right)];
 
-        let result = DirectionalFocus::find_window_in_direction(
-            &current,
-            Direction::Right,
-            &candidates,
-        );
+        let result =
+            DirectionalFocus::find_window_in_direction(&current, Direction::Right, &candidates);
 
         assert_eq!(result, Some(2));
     }
@@ -684,11 +678,8 @@ mod tests {
 
         let candidates = vec![(1, far_right), (2, near_right)];
 
-        let result = DirectionalFocus::find_window_in_direction(
-            &current,
-            Direction::Right,
-            &candidates,
-        );
+        let result =
+            DirectionalFocus::find_window_in_direction(&current, Direction::Right, &candidates);
 
         // Should select the nearer window (2)
         assert_eq!(result, Some(2));

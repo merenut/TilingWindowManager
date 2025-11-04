@@ -101,7 +101,7 @@ impl WindowHandle {
     ///
     /// `true` if the handle is non-null, `false` otherwise.
     pub fn is_valid(&self) -> bool {
-        self.0.0 != 0
+        self.0 .0 != 0
     }
 
     /// Get the window title.
@@ -384,7 +384,8 @@ impl WindowHandle {
     /// The process name as a String, or an error if retrieval fails.
     pub fn get_process_name(&self) -> anyhow::Result<String> {
         use windows::Win32::System::Threading::{
-            OpenProcess, QueryFullProcessImageNameW, PROCESS_NAME_FORMAT, PROCESS_QUERY_LIMITED_INFORMATION,
+            OpenProcess, QueryFullProcessImageNameW, PROCESS_NAME_FORMAT,
+            PROCESS_QUERY_LIMITED_INFORMATION,
         };
 
         let process_id = self.get_process_id();
@@ -394,11 +395,11 @@ impl WindowHandle {
 
         unsafe {
             let process_handle = OpenProcess(PROCESS_QUERY_LIMITED_INFORMATION, false, process_id)?;
-            
+
             // Query the full process image name
             let mut buffer = vec![0u16; 260]; // MAX_PATH
             let mut size = buffer.len() as u32;
-            
+
             if QueryFullProcessImageNameW(
                 process_handle,
                 PROCESS_NAME_FORMAT(0),
@@ -432,20 +433,10 @@ impl WindowHandle {
     ///
     /// `Ok(())` on success, or an error if the operation fails.
     pub fn set_pos(&self, x: i32, y: i32, width: i32, height: i32) -> anyhow::Result<()> {
-        use windows::Win32::UI::WindowsAndMessaging::{
-            SetWindowPos, SWP_NOZORDER, HWND_TOP,
-        };
+        use windows::Win32::UI::WindowsAndMessaging::{SetWindowPos, HWND_TOP, SWP_NOZORDER};
 
         unsafe {
-            SetWindowPos(
-                self.0,
-                HWND_TOP,
-                x,
-                y,
-                width,
-                height,
-                SWP_NOZORDER,
-            )?;
+            SetWindowPos(self.0, HWND_TOP, x, y, width, height, SWP_NOZORDER)?;
         }
 
         Ok(())

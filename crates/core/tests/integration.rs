@@ -349,8 +349,7 @@ fn test_window_registry() {
     // Manage a window
     let window = &windows[0];
     if wm.should_manage_window(window).unwrap_or(false) {
-        wm.manage_window(*window)
-            .expect("Failed to manage window");
+        wm.manage_window(*window).expect("Failed to manage window");
 
         // Verify window is in registry with Tiled state
         // Note: We'd need to expose registry getter methods for this test
@@ -381,8 +380,7 @@ fn test_floating_window() {
 
     let window = &windows[0];
     if wm.should_manage_window(window).unwrap_or(false) {
-        wm.manage_window(*window)
-            .expect("Failed to manage window");
+        wm.manage_window(*window).expect("Failed to manage window");
 
         // Toggle floating state
         wm.toggle_floating(window)
@@ -421,8 +419,7 @@ fn test_fullscreen_window() {
 
     let window = &windows[0];
     if wm.should_manage_window(window).unwrap_or(false) {
-        wm.manage_window(*window)
-            .expect("Failed to manage window");
+        wm.manage_window(*window).expect("Failed to manage window");
 
         // Toggle fullscreen
         wm.toggle_fullscreen(window)
@@ -465,8 +462,7 @@ fn test_retile_after_state_change() {
     // Manage multiple windows
     for window in windows.iter().take(2) {
         if wm.should_manage_window(window).unwrap_or(false) {
-            wm.manage_window(*window)
-                .expect("Failed to manage window");
+            wm.manage_window(*window).expect("Failed to manage window");
         }
     }
 
