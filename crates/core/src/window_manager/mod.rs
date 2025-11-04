@@ -19,6 +19,7 @@
 
 pub mod focus;
 pub mod layout;
+pub mod monitor;
 pub mod tree;
 pub mod window;
 
@@ -28,6 +29,7 @@ mod tree_tests;
 // Layout types are exported for public API use in later integration tasks
 pub use focus::{Direction, DirectionalFocus, FocusManager};
 pub use layout::{DwindleLayout, MasterLayout};
+pub use monitor::{MonitorInfo, MonitorManager};
 pub use tree::{Rect, Split, TreeNode};
 pub use window::{ManagedWindow, WindowRegistry, WindowState};
 
@@ -48,21 +50,6 @@ pub enum LayoutType {
     Dwindle,
     /// Master-stack layout
     Master,
-}
-
-/// Information about a display monitor.
-///
-/// Contains details about a monitor's position, size, and DPI scaling.
-#[derive(Debug, Clone)]
-pub struct MonitorInfo {
-    /// Unique identifier for the monitor (internal)
-    pub id: usize,
-    /// Monitor name (e.g., "\\.\DISPLAY1")
-    pub name: String,
-    /// Work area rectangle (excludes taskbar)
-    pub work_area: Rect,
-    /// DPI scale factor (1.0 = 100%, 1.5 = 150%, etc.)
-    pub dpi_scale: f32,
 }
 
 /// Central window manager that coordinates windows, workspaces, and monitors.
@@ -221,12 +208,15 @@ impl WindowManager {
         #[cfg(not(target_os = "windows"))]
         {
             // Stub implementation for non-Windows platforms (for testing)
-            self.monitors.push(MonitorInfo {
-                id: 0,
-                name: "Primary Monitor".to_string(),
-                work_area: Rect::new(0, 0, 1920, 1080),
-                dpi_scale: 1.0,
-            });
+            let rect = Rect::new(0, 0, 1920, 1080);
+            self.monitors.push(MonitorInfo::new(
+                0,
+                0,
+                "Primary Monitor".to_string(),
+                rect,
+                rect,
+                1.0,
+            ));
         }
 
         // Sort monitors by position for consistent ordering
@@ -798,23 +788,35 @@ unsafe extern "system" fn enum_monitors_callback(
 
     if GetMonitorInfoW(hmonitor, &mut monitor_info.monitorInfo as *mut _ as *mut _).as_bool() {
         let work_area = &monitor_info.monitorInfo.rcWork;
+        let full_area = &monitor_info.monitorInfo.rcMonitor;
         let device_name = String::from_utf16_lossy(&monitor_info.szDevice)
             .trim_end_matches('\0')
             .to_string();
 
-        monitors.push(MonitorInfo {
-            id: 0, // Will be assigned later
-            name: device_name,
-            work_area: Rect::new(
-                work_area.left,
-                work_area.top,
-                work_area.right - work_area.left,
-                work_area.bottom - work_area.top,
-            ),
+        let work_rect = Rect::new(
+            work_area.left,
+            work_area.top,
+            work_area.right - work_area.left,
+            work_area.bottom - work_area.top,
+        );
+        
+        let full_rect = Rect::new(
+            full_area.left,
+            full_area.top,
+            full_area.right - full_area.left,
+            full_area.bottom - full_area.top,
+        );
+
+        monitors.push(MonitorInfo::new(
+            0, // Will be assigned later
+            hmonitor,
+            device_name,
+            work_rect,
+            full_rect,
             // Note: DPI scaling is set to 1.0 for now. Full DPI detection using
             // GetDpiForMonitor API can be added in a future enhancement.
-            dpi_scale: 1.0,
-        });
+            1.0,
+        ));
     }
 
     true.into()

@@ -697,4 +697,184 @@ impl WorkspaceManager {
 
         Ok(())
     }
+
+    /// Assign workspaces to monitors.
+    ///
+    /// This updates the monitor manager to track which workspaces are assigned
+    /// to each monitor and which workspace is currently active on each monitor.
+    ///
+    /// # Arguments
+    ///
+    /// * `monitor_manager` - Mutable reference to the monitor manager
+    ///
+    /// # Returns
+    ///
+    /// `Ok(())` on success, or an error if the operation fails.
+    pub fn assign_workspaces_to_monitors(
+        &mut self,
+        monitor_manager: &mut crate::window_manager::monitor::MonitorManager,
+    ) -> anyhow::Result<()> {
+        // Clear existing workspace assignments
+        for monitor in monitor_manager.monitors.values_mut() {
+            monitor.workspaces.clear();
+        }
+        
+        // Assign workspaces to their respective monitors
+        for workspace in self.workspaces.values() {
+            if let Some(monitor) = monitor_manager.get_by_id_mut(workspace.monitor) {
+                monitor.workspaces.push(workspace.id);
+                
+                // Set as active workspace if this workspace is visible
+                if workspace.visible {
+                    monitor.active_workspace = Some(workspace.id);
+                }
+            }
+        }
+        
+        Ok(())
+    }
+    
+    /// Get the active workspace for a specific monitor.
+    ///
+    /// # Arguments
+    ///
+    /// * `monitor_id` - Monitor ID to query
+    ///
+    /// # Returns
+    ///
+    /// `Some(workspace_id)` if there is an active workspace on the monitor,
+    /// `None` otherwise.
+    pub fn get_active_workspace_for_monitor(&self, monitor_id: usize) -> Option<usize> {
+        self.workspaces
+            .values()
+            .find(|ws| ws.monitor == monitor_id && ws.visible)
+            .map(|ws| ws.id)
+    }
+    
+    /// Switch workspace on a specific monitor.
+    ///
+    /// This hides all currently visible workspaces on the specified monitor
+    /// and shows the target workspace. Windows in the hidden workspaces are
+    /// hidden, and windows in the shown workspace are displayed.
+    ///
+    /// # Arguments
+    ///
+    /// * `monitor_id` - Monitor ID where the workspace switch should occur
+    /// * `workspace_id` - Target workspace ID to switch to
+    ///
+    /// # Returns
+    ///
+    /// `Ok(())` on success, or an error if:
+    /// - The workspace doesn't exist
+    /// - The workspace is not on the specified monitor
+    pub fn switch_workspace_on_monitor(
+        &mut self,
+        monitor_id: usize,
+        workspace_id: usize,
+    ) -> anyhow::Result<()> {
+        // Validate that the workspace exists and is on the correct monitor
+        if let Some(workspace) = self.workspaces.get(&workspace_id) {
+            if workspace.monitor != monitor_id {
+                anyhow::bail!(
+                    "Workspace {} is on monitor {}, not monitor {}",
+                    workspace_id,
+                    workspace.monitor,
+                    monitor_id
+                );
+            }
+        } else {
+            anyhow::bail!("Workspace {} does not exist", workspace_id);
+        }
+        
+        // Find and hide the currently visible workspace on this monitor (if any)
+        let current_visible = self.workspaces
+            .values()
+            .find(|ws| ws.monitor == monitor_id && ws.visible)
+            .map(|ws| ws.id);
+        
+        // Hide the currently visible workspace on this monitor
+        if let Some(ws_id) = current_visible {
+            if let Some(ws) = self.workspaces.get_mut(&ws_id) {
+                ws.mark_inactive();
+                
+                // Hide all windows in this workspace
+                #[cfg(target_os = "windows")]
+                {
+                    for &hwnd in &ws.windows {
+                        unsafe {
+                            use windows::Win32::UI::WindowsAndMessaging::*;
+                            use windows::Win32::Foundation::HWND;
+                            ShowWindow(HWND(hwnd), SW_HIDE);
+                        }
+                    }
+                }
+            }
+        }
+        
+        // Show the target workspace
+        if let Some(workspace) = self.workspaces.get_mut(&workspace_id) {
+            workspace.mark_active();
+            
+            // Show all windows in the target workspace
+            #[cfg(target_os = "windows")]
+            {
+                for &hwnd in &workspace.windows {
+                    unsafe {
+                        use windows::Win32::UI::WindowsAndMessaging::*;
+                        use windows::Win32::Foundation::HWND;
+                        ShowWindow(HWND(hwnd), SW_SHOW);
+                    }
+                }
+                
+                // Apply layout geometry if tree exists
+                if let Some(ref tree) = workspace.tree {
+                    tree.apply_layout(0, 0)?;
+                }
+            }
+        }
+        
+        Ok(())
+    }
+    
+    /// Redistribute workspaces when monitors change.
+    ///
+    /// This handles monitor configuration changes by:
+    /// - Moving workspaces from disconnected monitors to monitor 0
+    /// - Updating workspace tree rectangles to match new monitor dimensions
+    ///
+    /// # Arguments
+    ///
+    /// * `monitor_manager` - Reference to the monitor manager with current monitor state
+    ///
+    /// # Returns
+    ///
+    /// `Ok(())` on success, or an error if the operation fails.
+    pub fn handle_monitor_change(
+        &mut self,
+        monitor_manager: &crate::window_manager::monitor::MonitorManager,
+    ) -> anyhow::Result<()> {
+        // Reassign workspaces from disconnected monitors and update geometries
+        for workspace in self.workspaces.values_mut() {
+            if monitor_manager.get_by_id(workspace.monitor).is_none() {
+                // Monitor was disconnected, move workspace to primary monitor (ID 0)
+                workspace.monitor = 0;
+                
+                // Update tree rectangle if it exists
+                if let Some(monitor) = monitor_manager.get_by_id(0) {
+                    if let Some(ref mut tree) = workspace.tree {
+                        tree.set_rect(monitor.work_area);
+                    }
+                }
+            } else {
+                // Monitor still exists, update tree rectangle to match current dimensions
+                if let Some(monitor) = monitor_manager.get_by_id(workspace.monitor) {
+                    if let Some(ref mut tree) = workspace.tree {
+                        tree.set_rect(monitor.work_area);
+                    }
+                }
+            }
+        }
+        
+        Ok(())
+    }
 }
