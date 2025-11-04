@@ -68,11 +68,7 @@ impl ManagedWindow {
     /// # Returns
     ///
     /// A new ManagedWindow instance with default tiled state.
-    pub fn new(
-        handle: WindowHandle,
-        workspace: usize,
-        monitor: usize,
-    ) -> anyhow::Result<Self> {
+    pub fn new(handle: WindowHandle, workspace: usize, monitor: usize) -> anyhow::Result<Self> {
         let title = handle.get_title().unwrap_or_default();
         let class = handle.get_class_name().unwrap_or_default();
         let process_name = handle.get_process_name().unwrap_or_default();
@@ -130,8 +126,12 @@ impl ManagedWindow {
             self.state = WindowState::Fullscreen;
 
             // Apply fullscreen geometry
-            self.handle
-                .set_pos(monitor_rect.x, monitor_rect.y, monitor_rect.width, monitor_rect.height)?;
+            self.handle.set_pos(
+                monitor_rect.x,
+                monitor_rect.y,
+                monitor_rect.width,
+                monitor_rect.height,
+            )?;
         }
         Ok(())
     }

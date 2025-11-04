@@ -224,12 +224,7 @@ impl MasterLayout {
         let stack_width = (area.width - master_width).max(0);
 
         let master_area = Rect::new(area.x, area.y, master_width, area.height);
-        let stack_area = Rect::new(
-            area.x + master_width,
-            area.y,
-            stack_width,
-            area.height,
-        );
+        let stack_area = Rect::new(area.x + master_width, area.y, stack_width, area.height);
 
         // Tile master windows
         self.tile_vertical(masters, master_area)?;
@@ -258,30 +253,30 @@ impl MasterLayout {
 
         for (i, &hwnd) in windows.iter().enumerate() {
             let y = area.y + (i as i32 * height_per_window);
-            
+
             // For the last window, add any remaining height from integer division
             let height = if i == windows.len() - 1 {
                 height_per_window + remaining_height
             } else {
                 height_per_window
             };
-            
+
             let rect = Rect::new(area.x, y, area.width, height);
-            
+
             // Apply inner gaps (half gap on each side creates space between windows)
             let half_gap = self.gaps_in / 2;
-            
+
             // Ensure dimensions remain positive after applying gaps
             let final_width = (rect.width - self.gaps_in).max(1);
             let final_height = (rect.height - self.gaps_in).max(1);
-            
+
             let final_rect = Rect::new(
                 rect.x + half_gap,
                 rect.y + half_gap,
                 final_width,
                 final_height,
             );
-            
+
             self.position_window(hwnd, final_rect)?;
         }
 
@@ -410,10 +405,7 @@ mod tests {
     #[test]
     fn test_master_count_minimum() {
         let layout = MasterLayout::new().with_master_count(0);
-        assert_eq!(
-            layout.master_count, 1,
-            "Master count should be at least 1"
-        );
+        assert_eq!(layout.master_count, 1, "Master count should be at least 1");
     }
 
     #[test]

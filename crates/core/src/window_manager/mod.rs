@@ -425,8 +425,10 @@ impl WindowManager {
 
         if tiled_windows.is_empty() {
             // No tiled windows, create empty placeholder
-            self.trees
-                .insert(workspace_id, TreeNode::new_leaf(HWND(0), work_area_with_gaps));
+            self.trees.insert(
+                workspace_id,
+                TreeNode::new_leaf(HWND(0), work_area_with_gaps),
+            );
             return Ok(());
         }
 
@@ -445,7 +447,8 @@ impl WindowManager {
             }
             LayoutType::Master => {
                 // Apply master layout directly to window list
-                self.master_layout.apply(&tiled_windows, work_area_with_gaps)?;
+                self.master_layout
+                    .apply(&tiled_windows, work_area_with_gaps)?;
 
                 // Create a simple tree for tracking (master layout doesn't use tree structure)
                 let mut tree = TreeNode::new_leaf(HWND(0), work_area_with_gaps);

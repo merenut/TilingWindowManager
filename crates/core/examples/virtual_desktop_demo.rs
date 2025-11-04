@@ -66,6 +66,80 @@ fn main() -> anyhow::Result<()> {
                 println!("✗ Failed to get current desktop ID: {}\n", e);
             }
         }
+
+        // Demonstrate desktop switching by index
+        println!("Testing desktop switching by index...");
+        let count = manager.get_desktop_count().unwrap_or(1);
+        if count >= 2 {
+            println!("Switching to desktop 1...");
+            match manager.switch_desktop_by_index(1) {
+                Ok(_) => {
+                    println!("✓ Switched to desktop 1");
+                    std::thread::sleep(std::time::Duration::from_secs(1));
+                    
+                    println!("Switching back to desktop 0...");
+                    match manager.switch_desktop_by_index(0) {
+                        Ok(_) => println!("✓ Switched back to desktop 0\n"),
+                        Err(e) => println!("✗ Failed to switch back: {}\n", e),
+                    }
+                }
+                Err(e) => println!("✗ Failed to switch: {}\n", e),
+            }
+        } else {
+            println!("⚠ Need at least 2 desktops for switching demo (found {})\n", count);
+        }
+
+        // Demonstrate next/previous navigation with wraparound
+        println!("Testing next/previous navigation...");
+        if count >= 2 {
+            println!("Switching to next desktop...");
+            match manager.switch_to_next() {
+                Ok(_) => {
+                    println!("✓ Switched to next desktop");
+                    std::thread::sleep(std::time::Duration::from_millis(500));
+                    
+                    println!("Switching to previous desktop...");
+                    match manager.switch_to_previous() {
+                        Ok(_) => println!("✓ Switched to previous desktop\n"),
+                        Err(e) => println!("✗ Failed to switch previous: {}\n", e),
+                    }
+                }
+                Err(e) => println!("✗ Failed to switch next: {}\n", e),
+            }
+        }
+
+        // Demonstrate desktop creation and removal (commented out by default as it modifies state)
+        println!("Desktop creation and removal demo (skipped - would modify system state)");
+        println!("Uncomment the code in the example to test this functionality\n");
+        
+        /*
+        println!("Creating a new desktop...");
+        match manager.create_desktop() {
+            Ok(new_id) => {
+                println!("✓ Created new desktop: {:?}", new_id);
+                
+                let count_after = manager.get_desktop_count()?;
+                println!("  Desktop count after creation: {}", count_after);
+                
+                // Get a fallback desktop ID
+                let ids = manager.get_desktop_ids()?;
+                if let Some(fallback_id) = ids.iter().find(|&id| *id != new_id) {
+                    println!("Removing the newly created desktop...");
+                    match manager.remove_desktop(&new_id, fallback_id) {
+                        Ok(_) => {
+                            println!("✓ Removed desktop: {:?}", new_id);
+                            let count_final = manager.get_desktop_count()?;
+                            println!("  Desktop count after removal: {}\n", count_final);
+                        }
+                        Err(e) => println!("✗ Failed to remove desktop: {}\n", e),
+                    }
+                } else {
+                    println!("⚠ Could not find fallback desktop for removal\n");
+                }
+            }
+            Err(e) => println!("✗ Failed to create desktop: {}\n", e),
+        }
+        */
     }
 
     println!("=== Demo Complete ===");
