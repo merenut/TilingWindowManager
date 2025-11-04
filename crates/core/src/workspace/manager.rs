@@ -14,6 +14,7 @@ use windows::core::GUID;
 
 // On non-Windows platforms, define GUID as a type alias for byte array
 #[cfg(not(target_os = "windows"))]
+#[allow(clippy::upper_case_acronyms)]
 type GUID = [u8; 16];
 
 /// Represents a single workspace with its windows and layout.
