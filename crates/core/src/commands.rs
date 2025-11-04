@@ -369,22 +369,16 @@ impl CommandExecutor {
     /// # Arguments
     ///
     /// * `delta` - The change in master count (positive to increase, negative to decrease)
-    fn adjust_master_count(&self, _wm: &mut WindowManager, delta: i32) -> Result<()> {
+    fn adjust_master_count(&self, wm: &mut WindowManager, delta: i32) -> Result<()> {
         debug!("Adjusting master count by {}", delta);
 
-        // Access master_layout through public API
-        // Since master_layout is private, we need to add public methods to WindowManager
-        // For now, we'll just log a warning
-        warn!("Master count adjustment requires additional WindowManager API methods");
-
-        // The proper implementation would be:
-        // if delta > 0 {
-        //     wm.increase_master_count();
-        // } else {
-        //     wm.decrease_master_count();
-        // }
-        // wm.retile_workspace(wm.get_active_workspace())?;
-
+        if delta > 0 {
+            wm.increase_master_count();
+        } else {
+            wm.decrease_master_count();
+        }
+        
+        wm.retile_workspace(wm.get_active_workspace())?;
         Ok(())
     }
 
@@ -393,17 +387,11 @@ impl CommandExecutor {
     /// # Arguments
     ///
     /// * `delta` - The change in master factor (typically 0.05 for 5% increments)
-    fn adjust_master_factor(&self, _wm: &mut WindowManager, delta: f32) -> Result<()> {
+    fn adjust_master_factor(&self, wm: &mut WindowManager, delta: f32) -> Result<()> {
         debug!("Adjusting master factor by {}", delta);
 
-        // Access master_layout through public API
-        // For now, we'll just log a warning
-        warn!("Master factor adjustment requires additional WindowManager API methods");
-
-        // The proper implementation would be:
-        // wm.adjust_master_factor(delta);
-        // wm.retile_workspace(wm.get_active_workspace())?;
-
+        wm.adjust_master_factor(delta);
+        wm.retile_workspace(wm.get_active_workspace())?;
         Ok(())
     }
 

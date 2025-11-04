@@ -683,6 +683,71 @@ impl WindowManager {
         &self.monitors
     }
 
+    /// Increase the master window count (for master layout).
+    ///
+    /// This increases the number of windows in the master area.
+    /// After calling this, retile the workspace to apply changes.
+    ///
+    /// # Example
+    ///
+    /// ```no_run
+    /// use tiling_wm_core::window_manager::WindowManager;
+    ///
+    /// let mut wm = WindowManager::new();
+    /// wm.initialize().expect("Failed to initialize");
+    ///
+    /// wm.increase_master_count();
+    /// wm.retile_workspace(wm.get_active_workspace()).ok();
+    /// ```
+    pub fn increase_master_count(&mut self) {
+        self.master_layout.increase_master_count();
+    }
+
+    /// Decrease the master window count (for master layout).
+    ///
+    /// This decreases the number of windows in the master area.
+    /// After calling this, retile the workspace to apply changes.
+    ///
+    /// # Example
+    ///
+    /// ```no_run
+    /// use tiling_wm_core::window_manager::WindowManager;
+    ///
+    /// let mut wm = WindowManager::new();
+    /// wm.initialize().expect("Failed to initialize");
+    ///
+    /// wm.decrease_master_count();
+    /// wm.retile_workspace(wm.get_active_workspace()).ok();
+    /// ```
+    pub fn decrease_master_count(&mut self) {
+        self.master_layout.decrease_master_count();
+    }
+
+    /// Adjust the master factor (for master layout).
+    ///
+    /// This changes the portion of the screen allocated to the master area.
+    /// After calling this, retile the workspace to apply changes.
+    ///
+    /// # Arguments
+    ///
+    /// * `delta` - The change in master factor (typically 0.05 for 5% increments)
+    ///
+    /// # Example
+    ///
+    /// ```no_run
+    /// use tiling_wm_core::window_manager::WindowManager;
+    ///
+    /// let mut wm = WindowManager::new();
+    /// wm.initialize().expect("Failed to initialize");
+    ///
+    /// // Increase master area by 5%
+    /// wm.adjust_master_factor(0.05);
+    /// wm.retile_workspace(wm.get_active_workspace()).ok();
+    /// ```
+    pub fn adjust_master_factor(&mut self, delta: f32) {
+        self.master_layout.adjust_master_factor(delta);
+    }
+
     /// Helper function to get the primary monitor's work area.
     fn get_primary_monitor_work_area(&self) -> Rect {
         self.monitors
