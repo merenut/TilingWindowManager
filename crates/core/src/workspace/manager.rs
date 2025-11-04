@@ -944,14 +944,14 @@ impl WorkspaceManager {
     ///
     /// ```
     /// use tiling_wm_core::workspace::WorkspaceManager;
-    /// use tiling_wm_core::window_manager::Rect;
+    /// use tiling_wm_core::window_manager::tree::Rect;
     ///
     /// let mut rect = Rect::new(0, 0, 1920, 1080);
     /// WorkspaceManager::apply_dpi_scaling(&mut rect, 1.5);
     /// assert_eq!(rect.width, 2880);
     /// assert_eq!(rect.height, 1620);
     /// ```
-    fn apply_dpi_scaling(rect: &mut crate::window_manager::tree::Rect, dpi_scale: f32) {
+    pub fn apply_dpi_scaling(rect: &mut crate::window_manager::tree::Rect, dpi_scale: f32) {
         if (dpi_scale - 1.0).abs() > 0.01 {
             rect.x = (rect.x as f32 * dpi_scale) as i32;
             rect.y = (rect.y as f32 * dpi_scale) as i32;

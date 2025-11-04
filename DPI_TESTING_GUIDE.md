@@ -202,7 +202,7 @@ workspace_manager.update_dpi_scaling(&monitor_manager)?;
 
 ```rust
 use tiling_wm_core::workspace::WorkspaceManager;
-use tiling_wm_core::window_manager::Rect;
+use tiling_wm_core::window_manager::tree::Rect;
 
 let mut rect = Rect::new(0, 0, 1920, 1080);
 WorkspaceManager::apply_dpi_scaling(&mut rect, 1.5);
