@@ -40,8 +40,8 @@ mod windows_impl {
             DispatchMessageW, MSG, PeekMessageW, PM_REMOVE,
             WINEVENT_OUTOFCONTEXT,
             EVENT_OBJECT_CREATE, EVENT_OBJECT_DESTROY, EVENT_OBJECT_SHOW, EVENT_OBJECT_HIDE,
-            EVENT_SYSTEM_MOVESIZEEND, EVENT_SYSTEM_FOREGROUND, EVENT_SYSTEM_MINIMIZEEND,
-            EVENT_OBJECT_LOCATIONCHANGE,
+            EVENT_SYSTEM_MOVESIZEEND, EVENT_SYSTEM_FOREGROUND, EVENT_SYSTEM_MINIMIZESTART,
+            EVENT_SYSTEM_MINIMIZEEND, EVENT_OBJECT_LOCATIONCHANGE,
         },
         Win32::UI::Accessibility::{
             SetWinEventHook, UnhookWinEvent, HWINEVENTHOOK,
@@ -64,10 +64,20 @@ mod windows_impl {
 
     /// Global sender for event communication from the Win32 callback.
     /// We store a raw pointer to the sender so it can be accessed from the callback.
+    ///
+    /// # Safety
+    ///
     /// This is safe because:
     /// 1. The pointer is only set when the event loop starts
     /// 2. The pointer is cleared when the event loop stops
     /// 3. The EventLoop owns the sender and keeps it alive while hooks are active
+    /// 4. Only one EventLoop instance should be active at a time (enforced by application design)
+    ///
+    /// # Note
+    ///
+    /// This design assumes single-threaded event loop usage. If multiple EventLoop instances
+    /// need to run concurrently, this should be refactored to use thread-local storage or
+    /// a more sophisticated synchronization mechanism.
     static mut EVENT_SENDER_PTR: *const Sender<WindowEvent> = std::ptr::null();
 
     /// Win32 event hook callback function.
@@ -103,6 +113,7 @@ mod windows_impl {
             EVENT_OBJECT_SHOW => WindowEvent::WindowShown(hwnd),
             EVENT_OBJECT_HIDE => WindowEvent::WindowHidden(hwnd),
             EVENT_SYSTEM_MOVESIZEEND | EVENT_OBJECT_LOCATIONCHANGE => WindowEvent::WindowMoved(hwnd),
+            EVENT_SYSTEM_MINIMIZESTART => WindowEvent::WindowMinimized(hwnd),
             EVENT_SYSTEM_MINIMIZEEND => WindowEvent::WindowRestored(hwnd),
             EVENT_SYSTEM_FOREGROUND => WindowEvent::WindowFocused(hwnd),
             _ => return, // Ignore unknown events
@@ -151,6 +162,7 @@ mod windows_impl {
                 (EVENT_OBJECT_HIDE, EVENT_OBJECT_HIDE),
                 (EVENT_SYSTEM_MOVESIZEEND, EVENT_SYSTEM_MOVESIZEEND),
                 (EVENT_OBJECT_LOCATIONCHANGE, EVENT_OBJECT_LOCATIONCHANGE),
+                (EVENT_SYSTEM_MINIMIZESTART, EVENT_SYSTEM_MINIMIZESTART),
                 (EVENT_SYSTEM_MINIMIZEEND, EVENT_SYSTEM_MINIMIZEEND),
                 (EVENT_SYSTEM_FOREGROUND, EVENT_SYSTEM_FOREGROUND),
             ];
@@ -168,6 +180,14 @@ mod windows_impl {
                     );
 
                     if hook.is_invalid() {
+                        // Clean up any hooks that were already registered
+                        for h in self.hooks.drain(..) {
+                            let _ = UnhookWinEvent(h);
+                        }
+                        
+                        // Clear the global sender pointer
+                        EVENT_SENDER_PTR = std::ptr::null();
+                        
                         return Err(anyhow::anyhow!("Failed to set event hook for event {}", event_min));
                     }
 
