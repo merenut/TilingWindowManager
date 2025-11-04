@@ -1,0 +1,530 @@
+# ========================================
+# Tiling Window Manager Configuration
+# ========================================
+# 
+# This is the default configuration file for the Tiling Window Manager.
+# Copy this file to your config directory to customize settings.
+#
+# Config Location (Windows):
+#   %APPDATA%\tiling-wm\config.toml
+#
+# Documentation:
+#   https://github.com/merenut/TilingWindowManager/docs
+#
+# ========================================
+
+# ========================================
+# General Settings
+# ========================================
+[general]
+# Gap size between windows (pixels)
+# This controls the spacing between tiled windows
+gaps_in = 5
+
+# Gap size from screen edges (pixels)
+# This controls the outer margin around the workspace
+gaps_out = 10
+
+# Border size around windows (pixels)
+# Set to 0 to disable window borders
+border_size = 2
+
+# Active window border color (hex)
+# Colors use standard hex format: #RRGGBB
+# Default: Catppuccin Mocha Blue
+active_border_color = "#89b4fa"
+
+# Inactive window border color (hex)
+# Default: Catppuccin Mocha Surface2
+inactive_border_color = "#585b70"
+
+# Automatically tile new windows
+# When true, new windows are automatically added to the tiling layout
+# When false, new windows open as floating
+auto_tile = true
+
+# ========================================
+# Decoration Settings
+# ========================================
+[decoration]
+# Corner rounding radius (pixels)
+# Set to 0 for square corners
+# Note: Requires DWM support on Windows
+rounding = 10
+
+# Active window opacity (0.0 - 1.0)
+# 1.0 = fully opaque, 0.0 = fully transparent
+# Applies to the currently focused window
+active_opacity = 1.0
+
+# Inactive window opacity (0.0 - 1.0)
+# Applies to all non-focused windows
+# Useful for focusing attention on active window
+inactive_opacity = 0.9
+
+# Enable window shadows
+# Provides depth perception in the window layout
+shadows = true
+
+# Shadow color with alpha (hex)
+# Format: #RRGGBBAA where AA is the alpha channel
+# Default: Semi-transparent black
+shadow_color = "#00000080"
+
+# ========================================
+# Animation Settings
+# ========================================
+[animations]
+# Enable animations globally
+# Animations include window movement, workspace switching, etc.
+# Disable for maximum performance or on slower systems
+enabled = true
+
+# Animation speed multiplier
+# 1.0 = normal speed, 2.0 = twice as fast, 0.5 = half speed
+# Lower values create smoother but slower animations
+speed = 1.0
+
+# Animation curve
+# Options: linear, easein, easeout, easeinout
+# easein: Starts slow, ends fast
+# easeout: Starts fast, ends slow (recommended)
+# easeinout: Smooth start and end
+curve = "easeout"
+
+# ========================================
+# Input Settings
+# ========================================
+[input]
+# Keyboard repeat rate (characters per second)
+# How fast a key repeats when held down
+repeat_rate = 25
+
+# Keyboard repeat delay (milliseconds)
+# How long to wait before starting to repeat
+repeat_delay = 600
+
+# Follow mouse focus
+# When true, focus follows mouse cursor without clicking
+# When false, click required to focus windows
+follow_mouse = false
+
+# ========================================
+# Layout Settings
+# ========================================
+[layouts]
+# Default layout for new workspaces
+# Options: "dwindle", "master"
+# dwindle: Binary space partitioning (like i3/Hyprland)
+# master: Master-stack layout (like xmonad)
+default = "dwindle"
+
+# Dwindle Layout Settings
+[layouts.dwindle]
+# Automatically choose split direction based on window aspect ratio
+# When true, splits horizontally for wide windows, vertically for tall
+# When false, always alternates between horizontal and vertical
+smart_split = true
+
+# Remove gaps when only one window is present
+# Maximizes screen space when working with a single window
+no_gaps_when_only = false
+
+# Default split ratio (0.0 - 1.0)
+# Controls how much space new windows take
+# 0.5 = equal split, 0.6 = new window gets 60%
+split_ratio = 0.5
+
+# Master Layout Settings
+[layouts.master]
+# Size ratio for master window (0.0 - 1.0)
+# The master window is typically your main focus
+# 0.55 means master takes 55% of screen width
+master_factor = 0.55
+
+# Number of windows in master area
+# Additional windows beyond this number go to the stack
+master_count = 1
+
+# ========================================
+# Window Rules
+# ========================================
+# Window rules allow automatic actions based on window properties
+# Rules are matched using regex patterns
+# Multiple rules can match the same window
+
+# Float Notepad windows
+# Notepad is typically used for quick notes, better as floating
+[[window_rules]]
+match_process = "notepad\\.exe"
+actions = ["float"]
+
+# Send Firefox to workspace 2
+# Keep your web browser organized on a dedicated workspace
+[[window_rules]]
+match_process = "firefox\\.exe"
+actions = [{ workspace = 2 }]
+
+# Float and send Calculator to workspace 3
+# Calculator works better as a floating window
+[[window_rules]]
+match_process = "calc\\.exe"
+actions = ["float", { workspace = 3 }]
+
+# Match by window title - Float Steam windows
+# Steam often creates popup windows that should float
+[[window_rules]]
+match_title = ".*Steam.*"
+actions = ["float"]
+
+# Don't manage popup windows
+# System popups and notifications should not be tiled
+[[window_rules]]
+match_class = ".*Popup.*"
+actions = ["no_manage"]
+
+# Set opacity for specific windows
+# Discord benefits from slight transparency
+[[window_rules]]
+match_process = "discord\\.exe"
+actions = [{ opacity = 0.95 }]
+
+# Pin window to all workspaces
+# Task Manager should be accessible from anywhere
+[[window_rules]]
+match_title = "Task Manager"
+actions = ["pin"]
+
+# ========================================
+# Workspace Rules
+# ========================================
+# Define workspace-to-monitor assignments
+# Useful for multi-monitor setups
+
+[[workspace_rules]]
+id = 1
+monitor = 0
+default = true
+name = "Main"
+
+[[workspace_rules]]
+id = 2
+monitor = 0
+name = "Web"
+
+[[workspace_rules]]
+id = 3
+monitor = 0
+name = "Code"
+
+[[workspace_rules]]
+id = 4
+monitor = 0
+name = "Media"
+
+[[workspace_rules]]
+id = 5
+monitor = 1  # Second monitor if available
+default = true
+name = "Comm"
+
+# ========================================
+# Keybindings
+# ========================================
+# Define keyboard shortcuts
+# Modifiers: Win, Ctrl, Alt, Shift
+# Special keys: Left, Right, Up, Down, Space, Enter, Escape
+# Number keys: 1-9, 0
+# Letter keys: A-Z (case insensitive)
+
+# Window Management
+# -----------------
+
+# Close active window
+[[keybinds]]
+modifiers = ["Win"]
+key = "q"
+command = "close"
+
+# Toggle floating mode for active window
+[[keybinds]]
+modifiers = ["Win"]
+key = "v"
+command = "toggle-floating"
+
+# Toggle fullscreen for active window
+[[keybinds]]
+modifiers = ["Win"]
+key = "f"
+command = "toggle-fullscreen"
+
+# Minimize active window
+[[keybinds]]
+modifiers = ["Win"]
+key = "m"
+command = "minimize"
+
+# Focus Navigation
+# ----------------
+
+# Focus window to the left
+[[keybinds]]
+modifiers = ["Win"]
+key = "Left"
+command = "focus-left"
+
+# Focus window to the right
+[[keybinds]]
+modifiers = ["Win"]
+key = "Right"
+command = "focus-right"
+
+# Focus window above
+[[keybinds]]
+modifiers = ["Win"]
+key = "Up"
+command = "focus-up"
+
+# Focus window below
+[[keybinds]]
+modifiers = ["Win"]
+key = "Down"
+command = "focus-down"
+
+# Focus next window (cycle forward)
+[[keybinds]]
+modifiers = ["Win"]
+key = "Tab"
+command = "focus-next"
+
+# Focus previous window (cycle backward)
+[[keybinds]]
+modifiers = ["Win", "Shift"]
+key = "Tab"
+command = "focus-previous"
+
+# Window Movement
+# ---------------
+
+# Move window left in tree
+[[keybinds]]
+modifiers = ["Win", "Shift"]
+key = "Left"
+command = "move-left"
+
+# Move window right in tree
+[[keybinds]]
+modifiers = ["Win", "Shift"]
+key = "Right"
+command = "move-right"
+
+# Move window up in tree
+[[keybinds]]
+modifiers = ["Win", "Shift"]
+key = "Up"
+command = "move-up"
+
+# Move window down in tree
+[[keybinds]]
+modifiers = ["Win", "Shift"]
+key = "Down"
+command = "move-down"
+
+# Layout Commands
+# ---------------
+
+# Switch to dwindle layout
+[[keybinds]]
+modifiers = ["Win"]
+key = "d"
+command = "layout-dwindle"
+
+# Switch to master layout
+[[keybinds]]
+modifiers = ["Win"]
+key = "t"
+command = "layout-master"
+
+# Decrease master area size
+[[keybinds]]
+modifiers = ["Win"]
+key = "bracketleft"
+command = "decrease-master"
+
+# Increase master area size
+[[keybinds]]
+modifiers = ["Win"]
+key = "bracketright"
+command = "increase-master"
+
+# Workspace Switching
+# -------------------
+
+# Switch to workspace 1
+[[keybinds]]
+modifiers = ["Win"]
+key = "1"
+command = "workspace-1"
+
+# Switch to workspace 2
+[[keybinds]]
+modifiers = ["Win"]
+key = "2"
+command = "workspace-2"
+
+# Switch to workspace 3
+[[keybinds]]
+modifiers = ["Win"]
+key = "3"
+command = "workspace-3"
+
+# Switch to workspace 4
+[[keybinds]]
+modifiers = ["Win"]
+key = "4"
+command = "workspace-4"
+
+# Switch to workspace 5
+[[keybinds]]
+modifiers = ["Win"]
+key = "5"
+command = "workspace-5"
+
+# Switch to workspace 6
+[[keybinds]]
+modifiers = ["Win"]
+key = "6"
+command = "workspace-6"
+
+# Switch to workspace 7
+[[keybinds]]
+modifiers = ["Win"]
+key = "7"
+command = "workspace-7"
+
+# Switch to workspace 8
+[[keybinds]]
+modifiers = ["Win"]
+key = "8"
+command = "workspace-8"
+
+# Switch to workspace 9
+[[keybinds]]
+modifiers = ["Win"]
+key = "9"
+command = "workspace-9"
+
+# Switch to workspace 10
+[[keybinds]]
+modifiers = ["Win"]
+key = "0"
+command = "workspace-10"
+
+# Move Window to Workspace
+# ------------------------
+
+# Move active window to workspace 1
+[[keybinds]]
+modifiers = ["Win", "Shift"]
+key = "1"
+command = "move-to-workspace-1"
+
+# Move active window to workspace 2
+[[keybinds]]
+modifiers = ["Win", "Shift"]
+key = "2"
+command = "move-to-workspace-2"
+
+# Move active window to workspace 3
+[[keybinds]]
+modifiers = ["Win", "Shift"]
+key = "3"
+command = "move-to-workspace-3"
+
+# Move active window to workspace 4
+[[keybinds]]
+modifiers = ["Win", "Shift"]
+key = "4"
+command = "move-to-workspace-4"
+
+# Move active window to workspace 5
+[[keybinds]]
+modifiers = ["Win", "Shift"]
+key = "5"
+command = "move-to-workspace-5"
+
+# System Commands
+# ---------------
+
+# Reload configuration
+# Re-reads config file and applies changes without restart
+[[keybinds]]
+modifiers = ["Win", "Shift"]
+key = "r"
+command = "reload-config"
+
+# Exit window manager
+# Gracefully shuts down the window manager
+[[keybinds]]
+modifiers = ["Win", "Shift"]
+key = "e"
+command = "exit"
+
+# Application Launchers (requires external tools)
+# ------------------------------------------------
+
+# Launch command prompt
+[[keybinds]]
+modifiers = ["Win"]
+key = "Return"
+command = "exec"
+args = ["cmd.exe"]
+
+# Launch web browser
+[[keybinds]]
+modifiers = ["Win"]
+key = "b"
+command = "exec"
+args = ["firefox.exe"]
+
+# ========================================
+# Monitor Configuration
+# ========================================
+# Configure monitor-specific settings
+# Leave empty for automatic detection
+#
+# To find monitor names, run:
+#   tiling-wm-cli monitors
+#
+# Example configurations are commented out below
+
+# Example: Configure primary monitor
+# [[monitors]]
+# name = "\\\\?\\DISPLAY#DEL4098#5&2a1a7c5a&0&UID16843009"
+# resolution = "1920x1080"
+# position = "0x0"
+# scale = 1.0
+# refresh_rate = 60
+# rotation = 0
+
+# Example: Configure secondary monitor (high DPI)
+# [[monitors]]
+# name = "\\\\?\\DISPLAY#DEL4099#5&2a1a7c5a&0&UID33686018"
+# resolution = "2560x1440"
+# position = "1920x0"
+# scale = 1.25
+# refresh_rate = 144
+# rotation = 0
+
+# Example: Configure vertical monitor
+# [[monitors]]
+# name = "\\\\?\\DISPLAY#DEL4100#5&2a1a7c5a&0&UID50529027"
+# resolution = "1920x1080"
+# position = "4480x0"
+# scale = 1.0
+# refresh_rate = 60
+# rotation = 90  # Portrait orientation
+
+# ========================================
+# End of Configuration
+# ========================================
