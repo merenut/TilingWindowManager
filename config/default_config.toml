@@ -222,10 +222,12 @@ id = 4
 monitor = 0
 name = "Media"
 
+# For multi-monitor setups: Each monitor can have its own default workspace
+# Workspace 1 is default for monitor 0, workspace 5 is default for monitor 1
 [[workspace_rules]]
 id = 5
 monitor = 1  # Second monitor if available
-default = true  # Default workspace for monitor 1 (different monitor than workspace 1)
+default = true  # This is the default workspace specifically for monitor 1
 name = "Comm"
 
 # ========================================
@@ -481,6 +483,8 @@ command = "exec"
 args = ["cmd.exe"]
 
 # Launch web browser
+# Note: Customize the executable name based on your installation
+# Examples: "firefox.exe", "chrome.exe", "msedge.exe", "brave.exe"
 [[keybinds]]
 modifiers = ["Win"]
 key = "b"
