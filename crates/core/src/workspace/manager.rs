@@ -5,9 +5,10 @@
 //! - `WorkspaceConfig`: Configuration for the workspace system
 //! - `WorkspaceManager`: Manages all workspaces and window-to-workspace mappings
 
-use crate::window_manager::tree::{Rect, Split, TreeNode};
+use crate::window_manager::tree::{Rect, TreeNode};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
+use windows::core::GUID;
 
 /// Represents a single workspace with its windows and layout.
 ///
@@ -32,7 +33,7 @@ pub struct Workspace {
     pub windows: Vec<isize>,
 
     /// Virtual Desktop ID (if using Virtual Desktop integration)
-    pub virtual_desktop_id: Option<windows::core::GUID>,
+    pub virtual_desktop_id: Option<GUID>,
 
     /// Whether this workspace is currently visible
     pub visible: bool,
