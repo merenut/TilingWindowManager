@@ -1,6 +1,7 @@
-// Allow dead code during Phase 2 development as components are being built
-// but not yet fully integrated. This will be removed in later phases.
+// Note: During Phase 2, some components are not yet fully integrated.
+// Dead code warnings are expected and will be resolved in later phases.
 #![allow(dead_code)]
+#![allow(unused_imports)]
 
 mod event_loop;
 mod utils;
