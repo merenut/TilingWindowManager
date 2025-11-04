@@ -19,13 +19,15 @@
 
 pub mod layout;
 pub mod tree;
+pub mod window;
 
 #[cfg(test)]
 mod tree_tests;
 
 // Layout types are exported for public API use in later integration tasks
-#[allow(unused_imports)] pub use layout::{DwindleLayout, MasterLayout};
+pub use layout::{DwindleLayout, MasterLayout};
 pub use tree::{Rect, Split, TreeNode};
+pub use window::{ManagedWindow, WindowRegistry, WindowState};
 
 use crate::utils::win32::WindowHandle;
 use std::collections::HashMap;
@@ -34,6 +36,17 @@ use windows::Win32::Foundation::HWND;
 use windows::Win32::Graphics::Gdi::{
     EnumDisplayMonitors, GetMonitorInfoW, HDC, HMONITOR, MONITORINFOEXW,
 };
+
+/// Layout algorithm type.
+///
+/// Determines how windows are arranged in the workspace.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum LayoutType {
+    /// Dwindle layout with smart split direction
+    Dwindle,
+    /// Master-stack layout
+    Master,
+}
 
 /// Information about a display monitor.
 ///
@@ -82,8 +95,14 @@ pub struct WindowManager {
     active_workspace: usize,
     /// Information about connected monitors
     monitors: Vec<MonitorInfo>,
-    /// Map of window handles to workspace IDs (hwnd.0 -> workspace_id)
-    managed_windows: HashMap<isize, usize>,
+    /// Registry of all managed windows
+    registry: WindowRegistry,
+    /// Dwindle layout configuration
+    dwindle_layout: DwindleLayout,
+    /// Master layout configuration
+    master_layout: MasterLayout,
+    /// Currently active layout type
+    current_layout: LayoutType,
 }
 
 impl WindowManager {
@@ -104,7 +123,10 @@ impl WindowManager {
             trees: HashMap::new(),
             active_workspace: 1,
             monitors: Vec::new(),
-            managed_windows: HashMap::new(),
+            registry: WindowRegistry::new(),
+            dwindle_layout: DwindleLayout::new(),
+            master_layout: MasterLayout::new(),
+            current_layout: LayoutType::Dwindle,
         }
     }
 
@@ -285,46 +307,21 @@ impl WindowManager {
         let hwnd = window.hwnd();
 
         // Check if already managed
-        if self.managed_windows.contains_key(&hwnd.0) {
+        if self.registry.get(hwnd.0).is_some() {
             return Ok(());
         }
 
-        // Get or create the tree for the active workspace
-        let workspace_id = self.active_workspace;
-        let work_area = self.get_primary_monitor_work_area();
+        // Determine monitor for this window
+        let monitor_index = 0; // TODO: Determine correct monitor
 
-        // Apply outer gaps to the work area to create spacing from screen edges
-        let gaps_out = 10;
-        let work_area_with_gaps = Rect::new(
-            work_area.x + gaps_out,
-            work_area.y + gaps_out,
-            work_area.width - 2 * gaps_out,
-            work_area.height - 2 * gaps_out,
-        );
+        // Create managed window
+        let managed = ManagedWindow::new(window, self.active_workspace, monitor_index)?;
 
-        if let Some(tree) = self.trees.get(&workspace_id) {
-            // Check if this is an empty placeholder tree (HWND(0))
-            if tree.hwnd() == Some(HWND(0)) {
-                // Replace with the new window
-                let new_tree = TreeNode::new_leaf(hwnd, work_area_with_gaps);
-                self.trees.insert(workspace_id, new_tree);
-            } else {
-                // Insert into existing tree (tree already has gaps applied to root)
-                let tree = self.trees.remove(&workspace_id).unwrap();
-                let new_tree = tree.insert(hwnd, Split::Horizontal);
-                self.trees.insert(workspace_id, new_tree);
-            }
-        } else {
-            // Create new tree for this workspace
-            let new_tree = TreeNode::new_leaf(hwnd, work_area_with_gaps);
-            self.trees.insert(workspace_id, new_tree);
-        }
+        // Register the window
+        self.registry.register(managed);
 
-        // Track the managed window
-        self.managed_windows.insert(hwnd.0, workspace_id);
-
-        // Apply the layout
-        self.tile_workspace(workspace_id)?;
+        // Retile the workspace
+        self.retile_workspace(self.active_workspace)?;
 
         Ok(())
     }
@@ -357,24 +354,10 @@ impl WindowManager {
     pub fn unmanage_window(&mut self, window: &WindowHandle) -> anyhow::Result<()> {
         let hwnd = window.hwnd();
 
-        // Find which workspace this window belongs to
-        if let Some(&workspace_id) = self.managed_windows.get(&hwnd.0) {
-            // Remove from the tree
-            if let Some(tree) = self.trees.remove(&workspace_id) {
-                if let Some(new_tree) = tree.remove(hwnd) {
-                    self.trees.insert(workspace_id, new_tree);
-                    // Re-tile the workspace
-                    self.tile_workspace(workspace_id)?;
-                } else {
-                    // Tree is now empty, create an empty placeholder
-                    let work_area = self.get_primary_monitor_work_area();
-                    self.trees
-                        .insert(workspace_id, TreeNode::new_leaf(HWND(0), work_area));
-                }
-            }
-
-            // Remove from managed windows
-            self.managed_windows.remove(&hwnd.0);
+        // Remove from registry
+        if let Some(managed) = self.registry.unregister(hwnd.0) {
+            // Retile the workspace this window belonged to
+            self.retile_workspace(managed.workspace)?;
         }
 
         Ok(())
@@ -399,6 +382,193 @@ impl WindowManager {
             }
         }
         Ok(())
+    }
+
+    /// Retile a workspace using the current layout algorithm.
+    ///
+    /// This method rebuilds the window tree for the workspace based on
+    /// the currently active layout type, considering only tiled windows.
+    /// Floating and fullscreen windows are excluded from the tiling layout.
+    ///
+    /// # Arguments
+    ///
+    /// * `workspace_id` - The workspace to retile
+    ///
+    /// # Returns
+    ///
+    /// `Ok(())` on success, or an error if layout application fails.
+    pub fn retile_workspace(&mut self, workspace_id: usize) -> anyhow::Result<()> {
+        // Get all tiled windows for this workspace
+        let tiled_windows: Vec<HWND> = self
+            .registry
+            .get_tiled_in_workspace(workspace_id)
+            .iter()
+            .map(|w| w.handle.hwnd())
+            .collect();
+
+        // Get monitor area for this workspace
+        let monitor = self
+            .monitors
+            .first()
+            .ok_or_else(|| anyhow::anyhow!("No monitors found"))?;
+
+        // Apply outer gaps to work area
+        let gaps_out = 10;
+        let work_area_with_gaps = Rect::new(
+            monitor.work_area.x + gaps_out,
+            monitor.work_area.y + gaps_out,
+            monitor.work_area.width - 2 * gaps_out,
+            monitor.work_area.height - 2 * gaps_out,
+        );
+
+        if tiled_windows.is_empty() {
+            // No tiled windows, create empty placeholder
+            self.trees
+                .insert(workspace_id, TreeNode::new_leaf(HWND(0), work_area_with_gaps));
+            return Ok(());
+        }
+
+        // Apply layout based on current layout type
+        match self.current_layout {
+            LayoutType::Dwindle => {
+                // Rebuild tree with dwindle layout
+                let mut tree = TreeNode::new_leaf(HWND(0), work_area_with_gaps);
+
+                for &hwnd in &tiled_windows {
+                    self.dwindle_layout.insert_window(&mut tree, hwnd)?;
+                }
+
+                self.dwindle_layout.apply(&tree)?;
+                self.trees.insert(workspace_id, tree);
+            }
+            LayoutType::Master => {
+                // Apply master layout directly to window list
+                self.master_layout.apply(&tiled_windows, work_area_with_gaps)?;
+
+                // Create a simple tree for tracking (master layout doesn't use tree structure)
+                let mut tree = TreeNode::new_leaf(HWND(0), work_area_with_gaps);
+                for &hwnd in &tiled_windows {
+                    if tree.hwnd() == Some(HWND(0)) {
+                        tree = TreeNode::new_leaf(hwnd, work_area_with_gaps);
+                    } else {
+                        tree = tree.insert(hwnd, Split::Horizontal);
+                    }
+                }
+                self.trees.insert(workspace_id, tree);
+            }
+        }
+
+        Ok(())
+    }
+
+    /// Toggle floating state for a window.
+    ///
+    /// If the window is currently tiled, it becomes floating.
+    /// If the window is floating, it becomes tiled.
+    /// After toggling, the workspace is retiled to adjust layout.
+    ///
+    /// # Arguments
+    ///
+    /// * `window` - The window to toggle
+    ///
+    /// # Returns
+    ///
+    /// `Ok(())` on success, or an error if the operation fails.
+    pub fn toggle_floating(&mut self, window: &WindowHandle) -> anyhow::Result<()> {
+        let hwnd = window.hwnd();
+
+        if let Some(managed) = self.registry.get_mut(hwnd.0) {
+            let workspace = managed.workspace;
+            managed.toggle_floating()?;
+
+            // Retile workspace to adjust for window state change
+            self.retile_workspace(workspace)?;
+        }
+
+        Ok(())
+    }
+
+    /// Toggle fullscreen state for a window.
+    ///
+    /// If the window is not fullscreen, it becomes fullscreen covering the entire monitor.
+    /// If the window is fullscreen, it returns to its previous state (tiled or floating).
+    ///
+    /// # Arguments
+    ///
+    /// * `window` - The window to toggle
+    ///
+    /// # Returns
+    ///
+    /// `Ok(())` on success, or an error if the operation fails.
+    pub fn toggle_fullscreen(&mut self, window: &WindowHandle) -> anyhow::Result<()> {
+        let hwnd = window.hwnd();
+
+        if let Some(managed) = self.registry.get_mut(hwnd.0) {
+            let monitor = self
+                .monitors
+                .get(managed.monitor)
+                .ok_or_else(|| anyhow::anyhow!("Monitor not found"))?;
+
+            match managed.state {
+                WindowState::Fullscreen => {
+                    let workspace = managed.workspace;
+                    managed.exit_fullscreen()?;
+                    // Retile workspace
+                    self.retile_workspace(workspace)?;
+                }
+                _ => {
+                    managed.set_fullscreen(&monitor.work_area)?;
+                }
+            }
+        }
+
+        Ok(())
+    }
+
+    /// Set the layout type for the window manager.
+    ///
+    /// Changes the active layout algorithm and retiles the current workspace.
+    ///
+    /// # Arguments
+    ///
+    /// * `layout` - The layout type to set
+    ///
+    /// # Returns
+    ///
+    /// `Ok(())` on success, or an error if retiling fails.
+    pub fn set_layout(&mut self, layout: LayoutType) -> anyhow::Result<()> {
+        self.current_layout = layout;
+        self.retile_workspace(self.active_workspace)?;
+        Ok(())
+    }
+
+    /// Get the currently active layout type.
+    ///
+    /// # Returns
+    ///
+    /// The active layout type.
+    pub fn get_current_layout(&self) -> LayoutType {
+        self.current_layout
+    }
+
+    /// Get the active window.
+    ///
+    /// # Returns
+    ///
+    /// A reference to the active ManagedWindow, or None if no window is active.
+    pub fn get_active_window(&self) -> Option<&ManagedWindow> {
+        let fg_window = crate::utils::win32::get_foreground_window()?;
+        self.registry.get(fg_window.hwnd().0)
+    }
+
+    /// Get a mutable reference to the active window.
+    ///
+    /// # Returns
+    ///
+    /// A mutable reference to the active ManagedWindow, or None if no window is active.
+    pub fn get_active_window_mut(&mut self) -> Option<&mut ManagedWindow> {
+        let fg_window = crate::utils::win32::get_foreground_window()?;
+        self.registry.get_mut(fg_window.hwnd().0)
     }
 
     /// Switch to a different workspace.
@@ -686,16 +856,36 @@ mod window_manager_tests {
                 let result = wm.manage_window(*window);
                 assert!(result.is_ok());
 
-                // Verify it's tracked
-                assert!(wm.managed_windows.contains_key(&window.hwnd().0));
+                // Verify it's tracked in the registry
+                assert!(wm.registry.get(window.hwnd().0).is_some());
 
                 // Unmanage the window
                 let result = wm.unmanage_window(window);
                 assert!(result.is_ok());
 
                 // Verify it's no longer tracked
-                assert!(!wm.managed_windows.contains_key(&window.hwnd().0));
+                assert!(wm.registry.get(window.hwnd().0).is_none());
             }
         }
+    }
+
+    #[test]
+    fn test_layout_type_creation() {
+        let wm = WindowManager::new();
+        assert_eq!(wm.get_current_layout(), LayoutType::Dwindle);
+    }
+
+    #[test]
+    fn test_set_layout() {
+        let mut wm = WindowManager::new();
+        wm.initialize().ok();
+
+        assert_eq!(wm.get_current_layout(), LayoutType::Dwindle);
+
+        wm.set_layout(LayoutType::Master).ok();
+        assert_eq!(wm.get_current_layout(), LayoutType::Master);
+
+        wm.set_layout(LayoutType::Dwindle).ok();
+        assert_eq!(wm.get_current_layout(), LayoutType::Dwindle);
     }
 }

@@ -41,8 +41,8 @@ use windows::{
     Win32::UI::WindowsAndMessaging::{
         EnumWindows, GetClassNameW, GetForegroundWindow, GetParent, GetWindow, GetWindowRect,
         GetWindowTextLengthW, GetWindowTextW, GetWindowThreadProcessId, IsIconic, IsWindowVisible,
-        IsZoomed, PostMessageW, SetForegroundWindow, ShowWindow, GW_OWNER, SHOW_WINDOW_CMD,
-        SW_HIDE, SW_MAXIMIZE, SW_MINIMIZE, SW_RESTORE, WM_CLOSE,
+        IsZoomed, PostMessageW, SetForegroundWindow, SetWindowPos, ShowWindow, GW_OWNER, HWND_TOP,
+        SHOW_WINDOW_CMD, SWP_NOZORDER, SW_HIDE, SW_MAXIMIZE, SW_MINIMIZE, SW_RESTORE, WM_CLOSE,
     },
 };
 
@@ -375,6 +375,80 @@ impl WindowHandle {
     /// This method does not report success or failure.
     pub fn hide(&self) {
         self.show(SW_HIDE);
+    }
+
+    /// Get the process name for this window.
+    ///
+    /// # Returns
+    ///
+    /// The process name as a String, or an error if retrieval fails.
+    pub fn get_process_name(&self) -> anyhow::Result<String> {
+        use windows::Win32::System::Threading::{
+            OpenProcess, QueryFullProcessImageNameW, PROCESS_NAME_FORMAT, PROCESS_QUERY_LIMITED_INFORMATION,
+        };
+
+        let process_id = self.get_process_id();
+        if process_id == 0 {
+            return Ok(String::new());
+        }
+
+        unsafe {
+            let process_handle = OpenProcess(PROCESS_QUERY_LIMITED_INFORMATION, false, process_id)?;
+            
+            // Query the full process image name
+            let mut buffer = vec![0u16; 260]; // MAX_PATH
+            let mut size = buffer.len() as u32;
+            
+            if QueryFullProcessImageNameW(
+                process_handle,
+                PROCESS_NAME_FORMAT(0),
+                windows::core::PWSTR(buffer.as_mut_ptr()),
+                &mut size,
+            )
+            .is_ok()
+            {
+                let path = String::from_utf16_lossy(&buffer[..size as usize]);
+                // Extract just the filename from the path
+                if let Some(filename) = path.split('\\').next_back() {
+                    return Ok(filename.to_string());
+                }
+                Ok(path)
+            } else {
+                Ok(String::new())
+            }
+        }
+    }
+
+    /// Set the window position and size.
+    ///
+    /// # Arguments
+    ///
+    /// * `x` - The x-coordinate of the window's top-left corner
+    /// * `y` - The y-coordinate of the window's top-left corner
+    /// * `width` - The width of the window
+    /// * `height` - The height of the window
+    ///
+    /// # Returns
+    ///
+    /// `Ok(())` on success, or an error if the operation fails.
+    pub fn set_pos(&self, x: i32, y: i32, width: i32, height: i32) -> anyhow::Result<()> {
+        use windows::Win32::UI::WindowsAndMessaging::{
+            SetWindowPos, SWP_NOZORDER, HWND_TOP,
+        };
+
+        unsafe {
+            SetWindowPos(
+                self.0,
+                HWND_TOP,
+                x,
+                y,
+                width,
+                height,
+                SWP_NOZORDER,
+            )?;
+        }
+
+        Ok(())
     }
 
     /// Check if this is a standard application window (has title, is visible, has no owner).

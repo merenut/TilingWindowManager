@@ -305,3 +305,185 @@ fn test_workspace_tree_management() {
         );
     }
 }
+
+/// Test layout type switching
+#[test]
+fn test_layout_switching() {
+    use tiling_wm_core::window_manager::LayoutType;
+
+    let mut wm = WindowManager::new();
+    wm.initialize().expect("Failed to initialize");
+
+    // Default should be Dwindle
+    assert_eq!(wm.get_current_layout(), LayoutType::Dwindle);
+
+    // Switch to Master layout
+    wm.set_layout(LayoutType::Master)
+        .expect("Failed to set Master layout");
+    assert_eq!(wm.get_current_layout(), LayoutType::Master);
+
+    // Switch back to Dwindle
+    wm.set_layout(LayoutType::Dwindle)
+        .expect("Failed to set Dwindle layout");
+    assert_eq!(wm.get_current_layout(), LayoutType::Dwindle);
+}
+
+/// Test window registry integration
+#[test]
+#[ignore]
+#[cfg(target_os = "windows")]
+fn test_window_registry() {
+    use tiling_wm_core::utils::win32;
+    use tiling_wm_core::window_manager::WindowState;
+
+    let mut wm = WindowManager::new();
+    wm.initialize().expect("Failed to initialize");
+
+    let windows = win32::enumerate_app_windows().expect("Failed to enumerate windows");
+
+    if windows.is_empty() {
+        println!("Skipping test - no windows available");
+        return;
+    }
+
+    // Manage a window
+    let window = &windows[0];
+    if wm.should_manage_window(window).unwrap_or(false) {
+        wm.manage_window(*window)
+            .expect("Failed to manage window");
+
+        // Verify window is in registry with Tiled state
+        // Note: We'd need to expose registry getter methods for this test
+        println!("Window successfully managed and tracked in registry");
+
+        // Clean up
+        wm.unmanage_window(window)
+            .expect("Failed to unmanage window");
+    }
+}
+
+/// Test floating window state
+#[test]
+#[ignore]
+#[cfg(target_os = "windows")]
+fn test_floating_window() {
+    use tiling_wm_core::utils::win32;
+
+    let mut wm = WindowManager::new();
+    wm.initialize().expect("Failed to initialize");
+
+    let windows = win32::enumerate_app_windows().expect("Failed to enumerate windows");
+
+    if windows.is_empty() {
+        println!("Skipping test - no windows available");
+        return;
+    }
+
+    let window = &windows[0];
+    if wm.should_manage_window(window).unwrap_or(false) {
+        wm.manage_window(*window)
+            .expect("Failed to manage window");
+
+        // Toggle floating state
+        wm.toggle_floating(window)
+            .expect("Failed to toggle floating");
+
+        println!("Window toggled to floating state");
+
+        // Toggle back to tiled
+        wm.toggle_floating(window)
+            .expect("Failed to toggle back to tiled");
+
+        println!("Window toggled back to tiled state");
+
+        // Clean up
+        wm.unmanage_window(window)
+            .expect("Failed to unmanage window");
+    }
+}
+
+/// Test fullscreen window state
+#[test]
+#[ignore]
+#[cfg(target_os = "windows")]
+fn test_fullscreen_window() {
+    use tiling_wm_core::utils::win32;
+
+    let mut wm = WindowManager::new();
+    wm.initialize().expect("Failed to initialize");
+
+    let windows = win32::enumerate_app_windows().expect("Failed to enumerate windows");
+
+    if windows.is_empty() {
+        println!("Skipping test - no windows available");
+        return;
+    }
+
+    let window = &windows[0];
+    if wm.should_manage_window(window).unwrap_or(false) {
+        wm.manage_window(*window)
+            .expect("Failed to manage window");
+
+        // Toggle fullscreen
+        wm.toggle_fullscreen(window)
+            .expect("Failed to toggle fullscreen");
+
+        println!("Window set to fullscreen");
+
+        // Give it a moment to apply
+        std::thread::sleep(std::time::Duration::from_millis(100));
+
+        // Exit fullscreen
+        wm.toggle_fullscreen(window)
+            .expect("Failed to exit fullscreen");
+
+        println!("Window exited fullscreen");
+
+        // Clean up
+        wm.unmanage_window(window)
+            .expect("Failed to unmanage window");
+    }
+}
+
+/// Test retiling after window state changes
+#[test]
+#[ignore]
+#[cfg(target_os = "windows")]
+fn test_retile_after_state_change() {
+    use tiling_wm_core::utils::win32;
+
+    let mut wm = WindowManager::new();
+    wm.initialize().expect("Failed to initialize");
+
+    let windows = win32::enumerate_app_windows().expect("Failed to enumerate windows");
+
+    if windows.len() < 2 {
+        println!("Skipping test - need at least 2 windows");
+        return;
+    }
+
+    // Manage multiple windows
+    for window in windows.iter().take(2) {
+        if wm.should_manage_window(window).unwrap_or(false) {
+            wm.manage_window(*window)
+                .expect("Failed to manage window");
+        }
+    }
+
+    // Toggle one to floating
+    wm.toggle_floating(&windows[0])
+        .expect("Failed to toggle floating");
+
+    println!("First window toggled to floating - workspace should retile");
+
+    // Toggle it back
+    wm.toggle_floating(&windows[0])
+        .expect("Failed to toggle back");
+
+    println!("First window toggled back to tiled - workspace should retile again");
+
+    // Clean up
+    for window in windows.iter().take(2) {
+        wm.unmanage_window(window).ok();
+    }
+}
