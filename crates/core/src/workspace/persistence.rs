@@ -124,7 +124,9 @@ impl PersistenceManager {
             .unwrap_or_else(|| PathBuf::from("."))
             .join("tiling-wm");
         
-        fs::create_dir_all(&state_dir).ok();
+        if let Err(e) = fs::create_dir_all(&state_dir) {
+            tracing::warn!("Failed to create state directory {:?}: {}", state_dir, e);
+        }
         
         Self {
             state_file: state_dir.join("session.json"),
