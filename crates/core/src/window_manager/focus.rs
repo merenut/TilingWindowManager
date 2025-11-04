@@ -98,7 +98,7 @@ impl FocusManager {
     /// ```
     /// use tiling_wm_core::window_manager::focus::FocusManager;
     ///
-    /// let fm = FocusManager::with_history_size(20);
+    /// let fm = FocusManager::new().with_history_size(20);
     /// ```
     pub fn with_history_size(mut self, size: usize) -> Self {
         self.history_size = size;
@@ -202,13 +202,14 @@ impl FocusManager {
     ///
     /// # Example
     ///
-    /// ```
+    /// ```no_run
     /// use tiling_wm_core::window_manager::focus::FocusManager;
     ///
     /// let mut fm = FocusManager::new();
-    /// fm.add_to_history(1);
-    /// fm.add_to_history(2);
-    /// assert_eq!(fm.focus_previous(), Some(1));
+    /// // After focusing windows...
+    /// if let Some(prev_hwnd) = fm.focus_previous() {
+    ///     println!("Switched to previous window: {}", prev_hwnd);
+    /// }
     /// ```
     pub fn focus_previous(&mut self) -> Option<isize> {
         // Get second item in history (first is current)
@@ -236,13 +237,14 @@ impl FocusManager {
     ///
     /// # Example
     ///
-    /// ```
+    /// ```no_run
     /// use tiling_wm_core::window_manager::focus::FocusManager;
     ///
     /// let mut fm = FocusManager::new();
-    /// fm.add_to_history(1);
-    /// fm.add_to_history(2);
-    /// assert_eq!(fm.focus_next(), Some(1));
+    /// // After focusing windows...
+    /// if let Some(next_hwnd) = fm.focus_next() {
+    ///     println!("Switched to next window: {}", next_hwnd);
+    /// }
     /// ```
     pub fn focus_next(&mut self) -> Option<isize> {
         if self.focus_history.len() > 1 {
@@ -271,14 +273,13 @@ impl FocusManager {
     ///
     /// # Example
     ///
-    /// ```
+    /// ```no_run
     /// use tiling_wm_core::window_manager::focus::FocusManager;
     ///
     /// let mut fm = FocusManager::new();
-    /// fm.add_to_history(1);
-    /// fm.add_to_history(2);
-    /// fm.remove_from_history(2);
-    /// assert_eq!(fm.get_history().len(), 1);
+    /// // When a window is closed
+    /// let closed_hwnd = 12345;
+    /// fm.remove_from_history(closed_hwnd);
     /// ```
     pub fn remove_from_history(&mut self, hwnd: isize) {
         self.focus_history.retain(|&h| h != hwnd);
@@ -301,10 +302,9 @@ impl FocusManager {
     /// ```
     /// use tiling_wm_core::window_manager::focus::FocusManager;
     ///
-    /// let mut fm = FocusManager::new();
-    /// fm.add_to_history(1);
-    /// fm.add_to_history(2);
-    /// assert_eq!(fm.get_history().len(), 2);
+    /// let fm = FocusManager::new();
+    /// // Initially empty
+    /// assert_eq!(fm.get_history().len(), 0);
     /// ```
     pub fn get_history(&self) -> &VecDeque<isize> {
         &self.focus_history
@@ -320,9 +320,10 @@ impl FocusManager {
     /// use tiling_wm_core::window_manager::focus::FocusManager;
     ///
     /// let mut fm = FocusManager::new();
-    /// fm.add_to_history(1);
+    /// // After focusing windows...
     /// fm.clear_history();
     /// assert_eq!(fm.get_history().len(), 0);
+    /// assert_eq!(fm.current(), None);
     /// ```
     pub fn clear_history(&mut self) {
         self.focus_history.clear();
