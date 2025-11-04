@@ -368,8 +368,11 @@ impl WorkspaceManager {
         }
         
         // Move all windows to fallback workspace
-        let workspace = self.workspaces.get(&workspace_id).unwrap();
-        let windows_to_move: Vec<isize> = workspace.windows.clone();
+        let windows_to_move: Vec<isize> = self.workspaces
+            .get(&workspace_id)
+            .expect("Workspace should exist after validation")
+            .windows
+            .clone();
         
         for hwnd in windows_to_move {
             self.move_window_to_workspace(hwnd, workspace_id, fallback_id)?;
@@ -413,7 +416,7 @@ impl WorkspaceManager {
             anyhow::bail!("Workspace {} does not exist", workspace_id);
         }
 
-        // Mark current workspace as inactive
+        // Mark current workspace as inactive (if it exists)
         if let Some(current) = self.workspaces.get_mut(&self.active_workspace) {
             current.mark_inactive();
         }
@@ -422,8 +425,12 @@ impl WorkspaceManager {
         self.active_workspace = workspace_id;
 
         // Mark new workspace as active
+        // We already validated workspace_id exists, so this should succeed
         if let Some(new_workspace) = self.workspaces.get_mut(&workspace_id) {
             new_workspace.mark_active();
+        } else {
+            // This should never happen due to the check above, but handle it safely
+            anyhow::bail!("Internal error: workspace disappeared during switch");
         }
 
         Ok(())
