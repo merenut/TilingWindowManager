@@ -374,6 +374,36 @@ impl TreeNode {
         self.rect
     }
 
+    /// Update the node's rectangle and propagate to children.
+    ///
+    /// This updates the rectangle of this node and recursively updates
+    /// all child rectangles to maintain the same proportions.
+    ///
+    /// # Arguments
+    ///
+    /// * `new_rect` - The new rectangle for this node
+    pub fn set_rect(&mut self, new_rect: Rect) {
+        self.rect = new_rect;
+        match &mut self.node_type {
+            NodeType::Leaf { .. } => {
+                // Leaf nodes just update their rect
+            }
+            NodeType::Container {
+                split,
+                left,
+                right,
+            } => {
+                // Container nodes need to update children proportionally
+                let (left_rect, right_rect) = match split {
+                    Split::Horizontal => new_rect.split_horizontal(0.5),
+                    Split::Vertical => new_rect.split_vertical(0.5),
+                };
+                left.set_rect(left_rect);
+                right.set_rect(right_rect);
+            }
+        }
+    }
+
     /// Get the window handle if this is a leaf node.
     ///
     /// # Returns

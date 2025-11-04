@@ -19,6 +19,7 @@
 
 pub mod focus;
 pub mod layout;
+pub mod monitor;
 pub mod tree;
 pub mod window;
 
@@ -28,6 +29,7 @@ mod tree_tests;
 // Layout types are exported for public API use in later integration tasks
 pub use focus::{Direction, DirectionalFocus, FocusManager};
 pub use layout::{DwindleLayout, MasterLayout};
+pub use monitor::{MonitorInfo, MonitorManager};
 pub use tree::{Rect, Split, TreeNode};
 pub use window::{ManagedWindow, WindowRegistry, WindowState};
 
