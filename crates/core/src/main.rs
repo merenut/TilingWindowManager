@@ -3,6 +3,7 @@
 #![allow(dead_code)]
 #![allow(unused_imports)]
 
+mod commands;
 mod event_loop;
 mod utils;
 mod window_manager;
@@ -13,6 +14,7 @@ use std::sync::Arc;
 use std::time::Duration;
 use tracing::{error, info};
 
+use commands::{Command, CommandExecutor};
 use event_loop::{EventLoop, WindowEvent};
 use window_manager::WindowManager;
 
@@ -52,6 +54,15 @@ fn main() -> Result<()> {
 
     info!("Tiling Window Manager is now running. Press Ctrl+C to exit.");
 
+    // Initialize command executor for handling commands
+    // In future phases, this will be integrated with hotkey bindings
+    let _executor = CommandExecutor::new();
+    
+    // Example: Commands can be executed like this:
+    // executor.execute(Command::SetLayoutMaster, &mut wm)?;
+    // executor.execute(Command::ToggleFloating, &mut wm)?;
+    // executor.execute(Command::SwitchWorkspace(2), &mut wm)?;
+    
     // Main event loop
     run_event_loop(&mut wm, &mut event_loop, &running)?;
 
