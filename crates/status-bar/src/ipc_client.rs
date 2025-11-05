@@ -24,6 +24,10 @@ const FILE_FLAG_OVERLAPPED: u32 = 0x40000000;
 /// Default retry delay in seconds when connection is lost
 const DEFAULT_RETRY_DELAY_SECS: u64 = 5;
 
+/// Maximum message size in bytes (1MB) to prevent DoS via large allocations
+#[cfg(windows)]
+const MAX_MESSAGE_SIZE: usize = 1024 * 1024;
+
 /// IPC client for connecting to the window manager
 #[derive(Clone)]
 pub struct IpcClient {
@@ -213,6 +217,15 @@ impl IpcClient {
                 .context("Failed to read response length")?;
             let response_len = u32::from_le_bytes(len_buf) as usize;
             
+            // Validate message size to prevent DoS
+            if response_len > MAX_MESSAGE_SIZE {
+                anyhow::bail!(
+                    "Response message too large: {} bytes (max: {} bytes)",
+                    response_len,
+                    MAX_MESSAGE_SIZE
+                );
+            }
+            
             let mut response_data = vec![0u8; response_len];
             pipe.read_exact(&mut response_data)
                 .context("Failed to read response data")?;
@@ -316,6 +329,12 @@ impl IpcClient {
             }
             
             let event_len = u32::from_le_bytes(len_buf) as usize;
+            
+            // Validate message size to prevent DoS
+            if event_len > MAX_MESSAGE_SIZE {
+                error!("Event message too large: {} bytes, skipping", event_len);
+                continue;
+            }
             
             // Read event data
             let mut event_data = vec![0u8; event_len];
