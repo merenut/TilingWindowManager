@@ -45,11 +45,21 @@ Create a fast, efficient, and user-friendly tiling window manager that brings th
 
 ## 📚 Documentation
 
+### For Users
+
+📘 **[IPC Protocol Documentation](docs/IPC.md)**  
+Complete IPC protocol specification, connection examples, request/response types, event system, and troubleshooting guide
+
+📗 **[CLI Usage Guide](docs/CLI.md)**  
+Comprehensive CLI reference with all commands, output formats, usage examples, and scripting guides
+
+📙 **[IPC Examples](examples/ipc/README.md)**  
+PowerShell and Python example scripts demonstrating automation and integration
+
 ### For Users (Coming Soon)
 - **Getting Started Guide** - Installation and basic usage
 - **Configuration Reference** - Complete configuration options
 - **Keybinding Guide** - Default and custom keybindings
-- **Troubleshooting** - Common issues and solutions
 
 ### For Developers
 
