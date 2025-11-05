@@ -304,6 +304,7 @@ impl Default for ConfigLoader {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use tempfile::tempdir;
     
     #[test]
     fn test_default_config() {
@@ -324,6 +325,20 @@ mod tests {
     }
     
     #[test]
+    fn test_create_default_config() {
+        let temp_dir = tempdir().unwrap();
+        let config_path = temp_dir.path().join("status-bar.toml");
+        
+        let loader = ConfigLoader::from_path(config_path.clone());
+        loader.create_default().unwrap();
+        
+        assert!(config_path.exists());
+        
+        let config = loader.load().unwrap();
+        assert_eq!(config.bar.height, 30);
+    }
+    
+    #[test]
     fn test_bar_position_serialization() {
         let pos = BarPosition::Top;
         let json = serde_json::to_string(&pos).unwrap();
@@ -331,5 +346,106 @@ mod tests {
         
         let deserialized: BarPosition = serde_json::from_str(&json).unwrap();
         assert_eq!(deserialized, BarPosition::Top);
+    }
+    
+    #[test]
+    fn test_load_creates_default_if_missing() {
+        let temp_dir = tempdir().unwrap();
+        let config_path = temp_dir.path().join("status-bar.toml");
+        
+        // Config file doesn't exist yet
+        assert!(!config_path.exists());
+        
+        let loader = ConfigLoader::from_path(config_path.clone());
+        let config = loader.load().unwrap();
+        
+        // Config should be created with defaults
+        assert!(config_path.exists());
+        assert_eq!(config.bar.height, 30);
+        assert_eq!(config.bar.position, BarPosition::Top);
+    }
+    
+    #[test]
+    fn test_module_specific_config() {
+        let mut config = BarConfig::default();
+        
+        // Add module-specific configuration
+        let clock_config = serde_json::json!({
+            "format": "%H:%M:%S",
+            "format_alt": "%Y-%m-%d"
+        });
+        config.modules.module_configs.insert("clock".to_string(), clock_config);
+        
+        // Serialize and deserialize
+        let toml_str = toml::to_string(&config).unwrap();
+        let deserialized: BarConfig = toml::from_str(&toml_str).unwrap();
+        
+        // Verify module config is preserved
+        assert!(deserialized.modules.module_configs.contains_key("clock"));
+        let clock_cfg = &deserialized.modules.module_configs["clock"];
+        assert_eq!(clock_cfg["format"], "%H:%M:%S");
+    }
+    
+    #[test]
+    fn test_all_defaults_are_sensible() {
+        let config = BarConfig::default();
+        
+        // Bar settings
+        assert_eq!(config.bar.height, 30); // Reasonable height
+        assert_eq!(config.bar.position, BarPosition::Top);
+        assert!(config.bar.always_on_top); // Should be on top by default
+        assert!(config.bar.reserve_space); // Should reserve space
+        assert_eq!(config.bar.monitor, None); // All monitors by default
+        
+        // Style settings
+        assert_eq!(config.style.background_color, "#1e1e2e");
+        assert_eq!(config.style.foreground_color, "#cdd6f4");
+        assert_eq!(config.style.font_family, "Segoe UI");
+        assert_eq!(config.style.font_size, 12.0);
+        assert_eq!(config.style.border_width, 0);
+        
+        // Module configuration
+        assert_eq!(config.modules.left, vec!["workspaces"]);
+        assert_eq!(config.modules.center.len(), 0);
+        assert_eq!(config.modules.right, vec!["cpu", "memory", "battery", "clock"]);
+    }
+    
+    #[test]
+    fn test_toml_parse_error_helpful_message() {
+        let temp_dir = tempdir().unwrap();
+        let config_path = temp_dir.path().join("status-bar.toml");
+        
+        // Write invalid TOML
+        std::fs::write(&config_path, "invalid toml [[[").unwrap();
+        
+        let loader = ConfigLoader::from_path(config_path.clone());
+        let result = loader.load();
+        
+        // Should fail with helpful error message
+        assert!(result.is_err());
+        let err_msg = format!("{:?}", result.unwrap_err());
+        assert!(err_msg.contains("Failed to parse config file"));
+    }
+    
+    #[test]
+    fn test_partial_config_uses_defaults() {
+        let temp_dir = tempdir().unwrap();
+        let config_path = temp_dir.path().join("status-bar.toml");
+        
+        // Write minimal config - only height specified
+        let minimal_toml = r#"
+[bar]
+height = 50
+"#;
+        std::fs::write(&config_path, minimal_toml).unwrap();
+        
+        let loader = ConfigLoader::from_path(config_path);
+        let config = loader.load().unwrap();
+        
+        // Height should be custom, rest should be defaults
+        assert_eq!(config.bar.height, 50);
+        assert_eq!(config.bar.position, BarPosition::Top);
+        assert!(config.bar.always_on_top);
+        assert_eq!(config.style.background_color, "#1e1e2e");
     }
 }
