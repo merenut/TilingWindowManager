@@ -57,6 +57,8 @@ mod windows_impl {
         WindowRestored(HWND),
         WindowFocused(HWND),
         MonitorChanged,
+        /// Hotkey was pressed with the given hotkey ID
+        HotkeyPressed(i32),
     }
 
     /// Global sender for event communication from the Win32 callback.
@@ -234,10 +236,21 @@ mod windows_impl {
 
         /// Process Windows messages from the message queue.
         pub fn process_messages(&self) -> anyhow::Result<()> {
+            use windows::Win32::UI::WindowsAndMessaging::WM_HOTKEY;
+            
             unsafe {
                 let mut msg = MSG::default();
                 // Use PeekMessage pattern for non-blocking behavior
                 while PeekMessageW(&mut msg, None, 0, 0, PM_REMOVE).as_bool() {
+                    // Check for WM_HOTKEY messages
+                    if msg.message == WM_HOTKEY {
+                        let hotkey_id = msg.wParam.0 as i32;
+                        // Send hotkey event to the event queue
+                        if let Err(e) = self.event_tx.send(WindowEvent::HotkeyPressed(hotkey_id)) {
+                            tracing::error!("Failed to send hotkey event: {}", e);
+                        }
+                    }
+                    
                     DispatchMessageW(&msg);
                 }
             }
@@ -272,6 +285,8 @@ mod stub_impl {
     #[derive(Debug, Clone)]
     pub enum WindowEvent {
         MonitorChanged,
+        /// Hotkey was pressed with the given hotkey ID
+        HotkeyPressed(i32),
     }
 
     /// Stub EventLoop for non-Windows platforms
