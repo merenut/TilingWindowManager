@@ -36,6 +36,7 @@ pub struct CompiledRule {
 /// and provides methods to match windows and extract relevant actions.
 /// It supports multiple rule matches per window, allowing complex
 /// rule combinations.
+#[derive(Debug)]
 pub struct RuleMatcher {
     /// List of compiled rules
     rules: Vec<Arc<CompiledRule>>,
