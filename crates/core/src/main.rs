@@ -4,9 +4,12 @@
 #![allow(unused_imports)]
 
 mod commands;
+mod config;
 mod event_loop;
+mod rules;
 mod utils;
 mod window_manager;
+mod workspace;
 
 use anyhow::Result;
 use std::sync::atomic::{AtomicBool, Ordering};

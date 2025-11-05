@@ -33,6 +33,8 @@ pub use monitor::{MonitorInfo, MonitorManager};
 pub use tree::{Rect, Split, TreeNode};
 pub use window::{ManagedWindow, WindowRegistry, WindowState};
 
+use crate::config::Config;
+use crate::rules::RuleMatcher;
 use crate::utils::win32::WindowHandle;
 use std::collections::HashMap;
 use windows::Win32::Foundation::HWND;
@@ -92,6 +94,8 @@ pub struct WindowManager {
     master_layout: MasterLayout,
     /// Currently active layout type
     current_layout: LayoutType,
+    /// Rule matcher for window rules
+    rule_matcher: Option<RuleMatcher>,
 }
 
 impl WindowManager {
@@ -116,6 +120,7 @@ impl WindowManager {
             dwindle_layout: DwindleLayout::new(),
             master_layout: MasterLayout::new(),
             current_layout: LayoutType::Dwindle,
+            rule_matcher: None,
         }
     }
 
@@ -161,6 +166,52 @@ impl WindowManager {
             }
         }
 
+        Ok(())
+    }
+
+    /// Update configuration and rebuild rule matcher.
+    ///
+    /// This method updates layout settings and rebuilds the rule matcher
+    /// with the new window rules from the configuration.
+    ///
+    /// # Arguments
+    ///
+    /// * `config` - The new configuration to apply
+    ///
+    /// # Returns
+    ///
+    /// `Ok(())` on success, or an error if rule compilation fails.
+    ///
+    /// # Example
+    ///
+    /// ```no_run
+    /// use tiling_wm_core::window_manager::WindowManager;
+    /// use tiling_wm_core::config::ConfigLoader;
+    ///
+    /// let mut wm = WindowManager::new();
+    /// wm.initialize().unwrap();
+    ///
+    /// let loader = ConfigLoader::new().unwrap();
+    /// let config = loader.load().unwrap();
+    /// wm.update_config(&config).unwrap();
+    /// ```
+    pub fn update_config(&mut self, config: &Config) -> anyhow::Result<()> {
+        // Update layout settings
+        self.dwindle_layout.ratio = config.layouts.dwindle.split_ratio;
+        self.dwindle_layout.smart_split = config.layouts.dwindle.smart_split;
+        self.dwindle_layout.no_gaps_when_only = config.layouts.dwindle.no_gaps_when_only;
+        self.dwindle_layout.gaps_in = config.general.gaps_in;
+        self.dwindle_layout.gaps_out = config.general.gaps_out;
+        
+        self.master_layout.master_factor = config.layouts.master.master_factor;
+        self.master_layout.master_count = config.layouts.master.master_count;
+        self.master_layout.gaps_in = config.general.gaps_in;
+        self.master_layout.gaps_out = config.general.gaps_out;
+        
+        // Rebuild rule matcher
+        self.rule_matcher = Some(RuleMatcher::new(config.window_rules.clone())?);
+        
+        tracing::info!("Configuration updated successfully");
         Ok(())
     }
 
@@ -307,7 +358,80 @@ impl WindowManager {
         let monitor_index = 0; // TODO: Determine correct monitor
 
         // Create managed window
-        let managed = ManagedWindow::new(window, self.active_workspace, monitor_index)?;
+        let mut managed = ManagedWindow::new(window, self.active_workspace, monitor_index)?;
+
+        // Apply rules if rule matcher is available
+        if let Some(ref matcher) = self.rule_matcher {
+            // Check if window should be managed at all
+            if !matcher.should_manage(&managed) {
+                tracing::info!(
+                    "Window '{}' (process: {}) excluded by NoManage rule",
+                    managed.title,
+                    managed.process_name
+                );
+                return Ok(());
+            }
+
+            // Get initial workspace from rules
+            if let Some(workspace_id) = matcher.get_initial_workspace(&managed) {
+                // Validate workspace exists (workspace IDs start at 1)
+                if workspace_id > 0 && workspace_id <= 10 {
+                    tracing::info!(
+                        "Assigning window '{}' to workspace {} per rule",
+                        managed.title,
+                        workspace_id
+                    );
+                    managed.workspace = workspace_id;
+                } else {
+                    tracing::warn!(
+                        "Invalid workspace ID {} in rule for window '{}', using current workspace",
+                        workspace_id,
+                        managed.title
+                    );
+                }
+            }
+
+            // Get initial monitor from rules
+            if let Some(monitor_id) = matcher.get_initial_monitor(&managed) {
+                // Validate monitor exists
+                if monitor_id < self.monitors.len() {
+                    tracing::info!(
+                        "Assigning window '{}' to monitor {} per rule",
+                        managed.title,
+                        monitor_id
+                    );
+                    managed.monitor = monitor_id;
+                } else {
+                    tracing::warn!(
+                        "Invalid monitor ID {} in rule for window '{}', using monitor 0",
+                        monitor_id,
+                        managed.title
+                    );
+                    managed.monitor = 0;
+                }
+            }
+
+            // Check if should be floating
+            if matcher.should_float(&managed) {
+                tracing::info!("Setting window '{}' to floating per rule", managed.title);
+                managed.set_floating()?;
+            }
+
+            // Check if should be fullscreen
+            if matcher.should_fullscreen(&managed) {
+                tracing::info!("Setting window '{}' to fullscreen per rule", managed.title);
+                // Get the monitor's work area for fullscreen
+                if let Some(monitor) = self.monitors.get(managed.monitor) {
+                    managed.set_fullscreen(&monitor.work_area)?;
+                }
+            }
+
+            // Check if should not be focused
+            if matcher.should_not_focus(&managed) {
+                tracing::debug!("Window '{}' marked as no-focus per rule", managed.title);
+                // This flag can be checked by the focus manager
+            }
+        }
 
         // Register the window
         self.registry.register(managed);

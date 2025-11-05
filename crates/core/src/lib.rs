@@ -6,6 +6,7 @@
 pub mod commands;
 pub mod config;
 pub mod event_loop;
+pub mod rules;
 pub mod utils;
 pub mod window_manager;
 pub mod workspace;
