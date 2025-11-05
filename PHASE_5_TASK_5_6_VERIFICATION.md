@@ -61,10 +61,10 @@
 
 | Script | Lines | Purpose | Error Handling |
 |--------|-------|---------|----------------|
-| `window_monitor.py` | 65 | Window event monitoring with timestamps | ✅ try/except, KeyboardInterrupt |
-| `workspace_status.py` | 64 | Workspace information display | ✅ try/except, JSON validation |
-| `window_info.py` | 64 | Active window details | ✅ try/except, FileNotFoundError |
 | `auto_tiler.py` | 62 | Automation template for custom rules | ✅ try/except, graceful shutdown |
+| `window_info.py` | 64 | Active window details | ✅ try/except, FileNotFoundError |
+| `workspace_status.py` | 64 | Workspace information display | ✅ try/except, JSON validation |
+| `window_monitor.py` | 65 | Window event monitoring with timestamps | ✅ try/except, KeyboardInterrupt |
 
 **Total:** 255 lines of Python code
 
@@ -431,6 +431,8 @@ examples/ipc/
     ├── window_monitor.py (65 lines)
     └── workspace_status.py (64 lines)
 ```
+
+**Note:** Line counts above match `wc -l` output (148 PowerShell + 255 Python = 403 script lines)
 
 ### Documentation (2 files, 1,898 lines):
 ```
