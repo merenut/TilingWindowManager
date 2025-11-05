@@ -209,8 +209,6 @@ fn main() -> Result<()> {
 
 #[cfg(windows)]
 fn connect_to_pipe(pipe_path: &str) -> Result<std::fs::File> {
-    use std::os::windows::fs::OpenOptionsExt;
-    
     // Windows-specific constant for FILE_FLAG_OVERLAPPED
     const FILE_FLAG_OVERLAPPED: u32 = 0x40000000;
     
@@ -507,6 +505,8 @@ fn print_workspace_table(workspaces: &[Value]) {
 
 #[cfg(windows)]
 fn print_window_table(windows: &[Value]) {
+    const MAX_TITLE_LENGTH: usize = 40;
+    
     let mut table = Table::new();
     table
         .load_preset(UTF8_FULL)
@@ -520,7 +520,7 @@ fn print_window_table(windows: &[Value]) {
             win.get("state").and_then(|v| v.as_str()),
         ) {
             let focused = win.get("focused").and_then(|v| v.as_bool()).unwrap_or(false);
-            let title_truncated: String = title.chars().take(40).collect();
+            let title_truncated: String = title.chars().take(MAX_TITLE_LENGTH).collect();
             
             table.add_row(vec![
                 hwnd.to_string(),

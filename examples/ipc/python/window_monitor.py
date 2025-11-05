@@ -15,9 +15,9 @@ def monitor_windows():
     print("Monitoring window events (Ctrl+C to stop)...", file=sys.stderr)
     
     try:
+        events = 'window_created,window_closed,window_focused'
         proc = subprocess.Popen(
-            ['twm', '--format', 'json', 'listen', '--events', 
-             'window_created,window_closed,window_focused'],
+            ['twm', '--format', 'json', 'listen', '--events', events],
             stdout=subprocess.PIPE,
             stderr=subprocess.PIPE,
             text=True,
