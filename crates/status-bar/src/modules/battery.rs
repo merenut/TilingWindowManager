@@ -255,7 +255,8 @@ mod tests {
         let mut module = BatteryModule::new();
         module.state = BatteryState::Discharging;
         module.percentage = 50.0;
-        assert_eq!(module.get_icon(), "🪫"); // At 50% threshold, shows low icon
+        // At or below 50% threshold shows low battery icon
+        assert_eq!(module.get_icon(), "🪫");
     }
 
     #[test]
@@ -329,7 +330,8 @@ mod tests {
         module.percentage = 42.567;
         
         let formatted = module.format_text();
-        assert_eq!(formatted, "🪫 43%"); // Below 50% shows low battery icon
+        // Below 50% threshold shows low battery icon
+        assert_eq!(formatted, "🪫 43%");
     }
 
     #[test]
@@ -493,7 +495,7 @@ mod tests {
 
     #[test]
     fn test_is_available_returns_bool() {
-        // This test just verifies the function doesn't panic
+        // This test verifies the function doesn't panic on systems with or without batteries
         let available = BatteryModule::is_available();
         // Result can be true or false depending on system
         assert!(available == true || available == false);
