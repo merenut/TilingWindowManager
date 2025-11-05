@@ -913,9 +913,9 @@ Planned security enhancements:
 
 ## Protocol Version
 
-**Current Protocol Version:** 1.0.0
+**Current Protocol Version:** 0.1.0
 
-The protocol version is included in the `GetVersion` response and can be used to ensure compatibility between clients and the server.
+The protocol version follows the application version and is included in the `GetVersion` response. This can be used to ensure compatibility between clients and the server.
 
 ### Version Format
 
@@ -972,9 +972,13 @@ response = json.loads(result.stdout)
 version = response['data']['version']
 
 major, minor, patch = map(int, version.split('.'))
-if major != 1:
-    print(f"Incompatible protocol version: {version}")
-    exit(1)
+# Check if major version is compatible (currently 0.x for development)
+if major > 0:
+    # For stable versions (1.0+), check major version compatibility
+    EXPECTED_MAJOR = 1
+    if major != EXPECTED_MAJOR:
+        print(f"Incompatible protocol version: {version}")
+        exit(1)
 ```
 
 **Backward Compatibility Promise:**
