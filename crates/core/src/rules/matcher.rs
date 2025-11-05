@@ -41,6 +41,32 @@ pub struct RuleMatcher {
     rules: Vec<Arc<CompiledRule>>,
 }
 
+/// Summary of all rule actions for a window
+/// 
+/// This struct provides a consolidated view of all matching rule actions,
+/// allowing efficient access to all rule properties without repeated matching.
+#[derive(Debug, Clone, Default)]
+pub struct RuleMatch {
+    /// All actions from matching rules
+    pub actions: Vec<RuleAction>,
+    /// Whether window should be managed (false if NoManage present)
+    pub should_manage: bool,
+    /// Initial workspace (if specified)
+    pub workspace: Option<usize>,
+    /// Initial monitor (if specified)
+    pub monitor: Option<usize>,
+    /// Whether window should float
+    pub should_float: bool,
+    /// Whether window should start fullscreen
+    pub should_fullscreen: bool,
+    /// Whether window should be pinned
+    pub should_pin: bool,
+    /// Whether window should not be focused
+    pub should_not_focus: bool,
+    /// Opacity setting (if specified)
+    pub opacity: Option<f32>,
+}
+
 impl RuleMatcher {
     /// Create a new rule matcher from window rules
     /// 
@@ -160,34 +186,28 @@ impl RuleMatcher {
     /// 
     /// true if all specified conditions in the rule match the window
     fn rule_matches(&self, rule: &CompiledRule, window: &ManagedWindow) -> bool {
-        let mut matches = true;
-        
         // Check process name
         if let Some(ref regex) = rule.process_regex {
             if !regex.is_match(&window.process_name) {
-                matches = false;
+                return false;
             }
         }
         
-        // Check window title (only if still matching)
-        if matches && rule.title_regex.is_some() {
-            if let Some(ref regex) = rule.title_regex {
-                if !regex.is_match(&window.title) {
-                    matches = false;
-                }
+        // Check window title
+        if let Some(ref regex) = rule.title_regex {
+            if !regex.is_match(&window.title) {
+                return false;
             }
         }
         
-        // Check window class (only if still matching)
-        if matches && rule.class_regex.is_some() {
-            if let Some(ref regex) = rule.class_regex {
-                if !regex.is_match(&window.class) {
-                    matches = false;
-                }
+        // Check window class
+        if let Some(ref regex) = rule.class_regex {
+            if !regex.is_match(&window.class) {
+                return false;
             }
         }
         
-        matches
+        true
     }
     
     /// Check if a window should be managed based on rules
@@ -212,6 +232,13 @@ impl RuleMatcher {
     /// Returns the workspace ID from the first matching Workspace action.
     /// If multiple rules specify different workspaces, the first one wins.
     /// 
+    /// # Performance Note
+    /// 
+    /// This method calls `match_window()` internally which processes all rules.
+    /// If you need multiple rule properties (workspace, monitor, etc.), consider
+    /// calling `match_window()` once and processing the actions yourself to avoid
+    /// redundant rule matching.
+    /// 
     /// # Arguments
     /// 
     /// * `window` - The window to check
@@ -220,6 +247,8 @@ impl RuleMatcher {
     /// 
     /// Some(workspace_id) if a Workspace action matched, None otherwise
     pub fn get_initial_workspace(&self, window: &ManagedWindow) -> Option<usize> {
+        // Note: This could be optimized by caching match results or stopping early,
+        // but current implementation prioritizes simplicity and correctness.
         let actions = self.match_window(window);
         
         for action in actions {
@@ -340,6 +369,80 @@ impl RuleMatcher {
     /// The total number of compiled rules
     pub fn rule_count(&self) -> usize {
         self.rules.len()
+    }
+    
+    /// Get a consolidated summary of all matching rules for a window
+    /// 
+    /// This method performs rule matching once and extracts all relevant
+    /// information into a RuleMatch struct. This is more efficient than
+    /// calling individual helper methods when you need multiple properties.
+    /// 
+    /// # Arguments
+    /// 
+    /// * `window` - The window to match against rules
+    /// 
+    /// # Returns
+    /// 
+    /// A RuleMatch struct containing all matching actions and derived properties
+    /// 
+    /// # Example
+    /// 
+    /// ```no_run
+    /// # use tiling_wm_core::rules::RuleMatcher;
+    /// # use tiling_wm_core::window_manager::ManagedWindow;
+    /// # fn example(matcher: &RuleMatcher, window: &ManagedWindow) {
+    /// let rule_match = matcher.match_all(window);
+    /// 
+    /// if !rule_match.should_manage {
+    ///     return; // Window excluded by NoManage
+    /// }
+    /// 
+    /// if let Some(workspace_id) = rule_match.workspace {
+    ///     // Assign to workspace
+    /// }
+    /// 
+    /// if rule_match.should_float {
+    ///     // Make window floating
+    /// }
+    /// # }
+    /// ```
+    pub fn match_all(&self, window: &ManagedWindow) -> RuleMatch {
+        let actions = self.match_window(window);
+        
+        let mut result = RuleMatch {
+            actions: actions.clone(),
+            should_manage: true,
+            workspace: None,
+            monitor: None,
+            should_float: false,
+            should_fullscreen: false,
+            should_pin: false,
+            should_not_focus: false,
+            opacity: None,
+        };
+        
+        // Process actions to extract relevant properties
+        for action in &actions {
+            match action {
+                RuleAction::NoManage => result.should_manage = false,
+                RuleAction::Workspace(id) if result.workspace.is_none() => {
+                    result.workspace = Some(*id);
+                }
+                RuleAction::Monitor(id) if result.monitor.is_none() => {
+                    result.monitor = Some(*id);
+                }
+                RuleAction::Float => result.should_float = true,
+                RuleAction::Fullscreen => result.should_fullscreen = true,
+                RuleAction::Pin => result.should_pin = true,
+                RuleAction::NoFocus => result.should_not_focus = true,
+                RuleAction::Opacity(opacity) if result.opacity.is_none() => {
+                    result.opacity = Some(*opacity);
+                }
+                _ => {} // Ignore Tile and already-set values
+            }
+        }
+        
+        result
     }
 }
 
@@ -671,5 +774,85 @@ mod tests {
         assert!(matcher.should_float(&window));
         assert_eq!(matcher.get_initial_workspace(&window), Some(2));
         assert_eq!(matcher.get_opacity(&window), Some(0.9));
+    }
+    
+    #[test]
+    fn test_match_all_efficiency() {
+        let rules = vec![
+            WindowRule {
+                match_process: Some("test\\.exe".to_string()),
+                match_title: None,
+                match_class: None,
+                actions: vec![
+                    RuleAction::Float,
+                    RuleAction::Workspace(3),
+                    RuleAction::Monitor(1),
+                    RuleAction::Opacity(0.85),
+                    RuleAction::NoFocus,
+                ],
+            },
+        ];
+        
+        let matcher = RuleMatcher::new(rules).unwrap();
+        let window = create_test_window("test.exe", "Test", "TestClass");
+        
+        // Use match_all to get all properties at once
+        let rule_match = matcher.match_all(&window);
+        
+        // Verify all properties are extracted correctly
+        assert!(rule_match.should_manage);
+        assert!(rule_match.should_float);
+        assert_eq!(rule_match.workspace, Some(3));
+        assert_eq!(rule_match.monitor, Some(1));
+        assert_eq!(rule_match.opacity, Some(0.85));
+        assert!(rule_match.should_not_focus);
+        assert!(!rule_match.should_fullscreen);
+        assert!(!rule_match.should_pin);
+        assert_eq!(rule_match.actions.len(), 5);
+    }
+    
+    #[test]
+    fn test_match_all_no_manage() {
+        let rules = vec![
+            WindowRule {
+                match_process: Some("blocked\\.exe".to_string()),
+                match_title: None,
+                match_class: None,
+                actions: vec![RuleAction::NoManage],
+            },
+        ];
+        
+        let matcher = RuleMatcher::new(rules).unwrap();
+        let window = create_test_window("blocked.exe", "Blocked", "BlockedClass");
+        
+        let rule_match = matcher.match_all(&window);
+        
+        assert!(!rule_match.should_manage);
+    }
+    
+    #[test]
+    fn test_match_all_first_wins_for_workspace() {
+        let rules = vec![
+            WindowRule {
+                match_process: Some("app\\.exe".to_string()),
+                match_title: None,
+                match_class: None,
+                actions: vec![RuleAction::Workspace(2)],
+            },
+            WindowRule {
+                match_process: Some("app\\.exe".to_string()),
+                match_title: None,
+                match_class: None,
+                actions: vec![RuleAction::Workspace(3)],  // This should be ignored
+            },
+        ];
+        
+        let matcher = RuleMatcher::new(rules).unwrap();
+        let window = create_test_window("app.exe", "App", "AppClass");
+        
+        let rule_match = matcher.match_all(&window);
+        
+        // First workspace assignment should win
+        assert_eq!(rule_match.workspace, Some(2));
     }
 }

@@ -374,22 +374,41 @@ impl WindowManager {
 
             // Get initial workspace from rules
             if let Some(workspace_id) = matcher.get_initial_workspace(&managed) {
-                tracing::info!(
-                    "Assigning window '{}' to workspace {} per rule",
-                    managed.title,
-                    workspace_id
-                );
-                managed.workspace = workspace_id;
+                // Validate workspace exists (workspace IDs start at 1)
+                if workspace_id > 0 && workspace_id <= 10 {
+                    tracing::info!(
+                        "Assigning window '{}' to workspace {} per rule",
+                        managed.title,
+                        workspace_id
+                    );
+                    managed.workspace = workspace_id;
+                } else {
+                    tracing::warn!(
+                        "Invalid workspace ID {} in rule for window '{}', using current workspace",
+                        workspace_id,
+                        managed.title
+                    );
+                }
             }
 
             // Get initial monitor from rules
             if let Some(monitor_id) = matcher.get_initial_monitor(&managed) {
-                tracing::info!(
-                    "Assigning window '{}' to monitor {} per rule",
-                    managed.title,
-                    monitor_id
-                );
-                managed.monitor = monitor_id;
+                // Validate monitor exists
+                if monitor_id < self.monitors.len() {
+                    tracing::info!(
+                        "Assigning window '{}' to monitor {} per rule",
+                        managed.title,
+                        monitor_id
+                    );
+                    managed.monitor = monitor_id;
+                } else {
+                    tracing::warn!(
+                        "Invalid monitor ID {} in rule for window '{}', using monitor 0",
+                        monitor_id,
+                        managed.title
+                    );
+                    managed.monitor = 0;
+                }
             }
 
             // Check if should be floating

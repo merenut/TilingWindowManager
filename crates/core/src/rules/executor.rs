@@ -84,13 +84,22 @@ impl RuleExecutor {
                 tracing::debug!("Window '{}' marked as unmanaged", window.title);
                 window.managed = false;
             }
-            RuleAction::Opacity(_opacity) => {
-                tracing::debug!("Opacity setting for window '{}' (not yet implemented)", window.title);
+            RuleAction::Opacity(opacity) => {
+                tracing::warn!(
+                    "Opacity action for window '{}' with value {} is not yet implemented. \
+                    This will be supported in a future release with DWM API integration.",
+                    window.title,
+                    opacity
+                );
                 // Window opacity would be implemented with DWM API
                 // This is a future enhancement
             }
             RuleAction::Pin => {
-                tracing::debug!("Window '{}' pinned to all workspaces (not yet implemented)", window.title);
+                tracing::warn!(
+                    "Pin action for window '{}' is not yet implemented. \
+                    This will be supported in a future release with workspace manager integration.",
+                    window.title
+                );
                 // Pin functionality would require workspace manager integration
                 // This is a future enhancement
             }
