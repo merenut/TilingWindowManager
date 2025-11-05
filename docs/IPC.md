@@ -17,6 +17,17 @@ The Tiling Window Manager provides an IPC (Inter-Process Communication) interfac
 - [Error Handling](#error-handling)
 - [Security Considerations](#security-considerations)
 - [Protocol Version](#protocol-version)
+- [Implementation Notes](#implementation-notes)
+- [Examples](#examples)
+- [Troubleshooting](#troubleshooting)
+- [Support](#support)
+
+## Quick Links
+
+- **[CLI Tool Documentation](CLI.md)** - Using the command-line interface
+- **[Example Scripts](../../examples/ipc/README.md)** - PowerShell and Python examples
+- **[Phase 5 Tasks](../PHASE_5_TASKS.md)** - Implementation details
+- **[Troubleshooting Guide](#troubleshooting)** - Common issues and solutions
 
 ## Connection
 
@@ -902,9 +913,9 @@ Planned security enhancements:
 
 ## Protocol Version
 
-**Current Protocol Version:** 1.0.0
+**Current Protocol Version:** 0.1.0
 
-The protocol version is included in the `GetVersion` response and can be used to ensure compatibility between clients and the server.
+The protocol version follows the application version and is included in the `GetVersion` response. This can be used to ensure compatibility between clients and the server.
 
 ### Version Format
 
@@ -916,13 +927,64 @@ The protocol follows semantic versioning:
 
 ### Checking Version
 
+**Using CLI:**
+```bash
+twm version
+```
+
+**Using IPC Request:**
 ```json
 {
   "type": "get_version"
 }
 ```
 
-Response includes protocol version information.
+**Response:**
+```json
+{
+  "type": "success",
+  "data": {
+    "version": "0.1.0",
+    "build_date": "2024-11-05",
+    "git_commit": "abc123",
+    "rustc_version": "1.75.0"
+  }
+}
+```
+
+### Version Compatibility
+
+**Client Compatibility:**
+- Clients should check the protocol version on connect
+- Major version mismatch indicates incompatibility
+- Minor version differences are backward-compatible
+- Patch version differences are always compatible
+
+**Version Negotiation:**
+```python
+# Example: Check compatibility in Python
+import subprocess
+import json
+
+result = subprocess.run(['twm', '--format', 'json', 'version'], 
+                       capture_output=True, text=True)
+response = json.loads(result.stdout)
+version = response['data']['version']
+
+major, minor, patch = map(int, version.split('.'))
+# Check if major version is compatible (currently 0.x for development)
+if major > 0:
+    # For stable versions (1.0+), check major version compatibility
+    EXPECTED_MAJOR = 1
+    if major != EXPECTED_MAJOR:
+        print(f"Incompatible protocol version: {version}")
+        exit(1)
+```
+
+**Backward Compatibility Promise:**
+- Minor version updates add features without breaking existing clients
+- Deprecated features are marked before removal
+- At least one major version notice before breaking changes
 
 ## Implementation Notes
 
@@ -956,6 +1018,224 @@ See the [examples/ipc](../../examples/ipc/) directory for complete examples in P
 - [CLI Documentation](CLI.md) - Using the command-line interface
 - [Example Scripts](../../examples/ipc/README.md) - PowerShell and Python examples
 - [Phase 5 Tasks](../PHASE_5_TASKS.md) - Implementation details
+
+## Troubleshooting
+
+### Common Issues
+
+#### Cannot Connect to Named Pipe
+
+**Symptoms:**
+- Connection errors when using CLI or custom client
+- "Failed to connect to window manager" messages
+- Timeout errors
+
+**Solutions:**
+1. Verify the window manager is running
+   ```bash
+   # Check if process is running
+   tasklist | findstr tiling-wm
+   ```
+
+2. Confirm the pipe name is correct
+   ```bash
+   # Default pipe name
+   \\.\pipe\tiling-wm
+   ```
+
+3. Check permissions
+   - Run CLI as the same user as the window manager
+   - Avoid running one as admin and the other as regular user
+   - If necessary, try running both as administrator
+
+4. Verify the pipe exists
+   - Use the CLI ping command to test connectivity
+   ```bash
+   twm ping
+   ```
+
+#### Requests Timeout
+
+**Symptoms:**
+- Commands hang indefinitely
+- No response from server
+- Connection appears established but no data received
+
+**Solutions:**
+1. Check if the window manager is processing requests
+   - Look for error messages in window manager logs
+   - Verify the IPC server thread is running
+
+2. Verify no deadlocks in handler code
+   - Check for blocking operations in request handlers
+   - Ensure async operations are properly awaited
+
+3. Check async runtime configuration
+   - Verify Tokio runtime is configured correctly
+   - Check for runtime panic messages
+
+4. Increase timeout values if needed
+   - Adjust client timeout settings for slow operations
+   - Consider network/system load
+
+#### Events Not Received
+
+**Symptoms:**
+- Subscribed to events but not receiving them
+- Events work initially but stop
+- Some events received, others missing
+
+**Solutions:**
+1. Verify subscription was successful
+   ```bash
+   # Check subscription response
+   twm --format json listen --events window_created
+   ```
+
+2. Validate event names
+   - Ensure event names match exactly (case-sensitive)
+   - Refer to the event types list above
+   - Common mistake: using `WindowCreated` instead of `window_created`
+
+3. Check connection is still alive
+   - Long-running connections may drop
+   - Implement reconnection logic for reliable monitoring
+
+4. Test with simple events first
+   - Start with common events like `window_created`
+   - Gradually add more event types
+
+#### JSON Parsing Errors
+
+**Symptoms:**
+- "Failed to parse JSON" errors
+- Malformed response errors
+- Deserialization failures
+
+**Solutions:**
+1. Validate JSON format
+   ```bash
+   # Use JSON formatter to check output
+   twm --format json workspaces | python -m json.tool
+   ```
+
+2. Check protocol version compatibility
+   ```bash
+   # Verify protocol version
+   twm version
+   ```
+
+3. Ensure all required fields are present
+   - Check request contains mandatory fields
+   - Review protocol documentation for field requirements
+
+4. Test with CLI tool first
+   - Use the official CLI to verify server behavior
+   - If CLI works but custom client doesn't, review client implementation
+
+#### CLI Tool Crashes or Errors
+
+**Symptoms:**
+- CLI tool terminates unexpectedly
+- Panic messages
+- Access violations
+
+**Solutions:**
+1. Verify window manager is running
+   ```bash
+   twm ping
+   ```
+
+2. Check pipe path is correct
+   ```bash
+   # Use default pipe or specify custom
+   twm --pipe \\.\pipe\tiling-wm ping
+   ```
+
+3. Test with simple commands first
+   ```bash
+   # Try basic commands
+   twm version
+   twm ping
+   twm workspaces
+   ```
+
+4. Check for permission issues
+   - Run with same privileges as window manager
+   - Check Windows security policies
+
+#### High Memory Usage with Many Connections
+
+**Symptoms:**
+- Memory usage grows over time
+- System becomes slow with multiple clients
+- Out of memory errors
+
+**Solutions:**
+1. Implement connection limits
+   - Limit maximum concurrent connections
+   - Set reasonable defaults (e.g., 10-20 connections)
+
+2. Add timeout for idle connections
+   - Close connections after period of inactivity
+   - Default: 5-10 minutes idle timeout
+
+3. Review event subscriber count
+   - Check number of active event subscriptions
+   - Unsubscribe when no longer needed
+
+4. Check for memory leaks
+   - Monitor memory usage over time
+   - Profile the application to identify leaks
+   - Update to latest version with fixes
+
+### Performance Tips
+
+1. **Use JSON format for scripting**
+   - More efficient parsing than table format
+   - Easier to process programmatically
+
+2. **Batch operations when possible**
+   - Group related commands
+   - Minimize connection overhead
+
+3. **Unsubscribe from events when done**
+   - Free server resources
+   - Reduce event processing overhead
+
+4. **Use compact format for simple scripts**
+   - Minimal output size
+   - Faster processing
+
+### Debugging Tips
+
+1. **Enable verbose output**
+   ```bash
+   # Check detailed error messages
+   twm <command> 2>&1
+   ```
+
+2. **Test connectivity first**
+   ```bash
+   # Always start with ping
+   twm ping
+   ```
+
+3. **Verify JSON responses**
+   ```bash
+   # Use JSON format to see exact responses
+   twm --format json <command>
+   ```
+
+4. **Check window manager logs**
+   - Review logs for error messages
+   - Look for IPC server startup messages
+   - Check for request processing errors
+
+5. **Test with example scripts**
+   - Use provided PowerShell/Python examples
+   - Verify examples work before custom code
+   - Reference working code for implementation
 
 ## Support
 

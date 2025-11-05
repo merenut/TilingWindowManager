@@ -891,6 +891,120 @@ twm --help
 # Output: Error: This CLI tool only works on Windows.
 ```
 
+### Response Timeout Issues
+
+If commands hang or timeout:
+
+1. **Check server responsiveness**
+   ```bash
+   # Test basic connectivity
+   twm ping
+   ```
+
+2. **Verify window manager is not overloaded**
+   - Check CPU usage of window manager process
+   - Close unnecessary applications
+   - Restart window manager if needed
+
+3. **Try simpler commands first**
+   ```bash
+   # Start with quick queries
+   twm version
+   twm workspaces
+   ```
+
+4. **Check for blocking operations**
+   - Some commands may take longer (e.g., with many windows)
+   - Use JSON format to see if data is being returned
+
+### Event Subscription Problems
+
+If event listening doesn't work:
+
+1. **Verify event names are correct**
+   ```bash
+   # Event names are case-sensitive and use underscores
+   twm listen --events window_created,workspace_changed
+   ```
+
+2. **Test with single event first**
+   ```bash
+   # Start with one event to isolate issues
+   twm listen --events window_created
+   ```
+
+3. **Check if events are actually firing**
+   - Create a new window while listening
+   - Switch workspaces while listening
+   - Verify the action triggers an event
+
+4. **Connection may have dropped**
+   - Restart the listener
+   - Check window manager is still running
+
+### JSON Parsing Errors in Scripts
+
+When using JSON output in scripts:
+
+**PowerShell:**
+```powershell
+# Ensure proper error handling
+try {
+    $result = twm --format json workspaces | ConvertFrom-Json
+    if ($result.type -eq "success") {
+        # Process data
+    }
+} catch {
+    Write-Error "Failed to parse JSON: $_"
+}
+```
+
+**Python:**
+```python
+import json
+import subprocess
+
+try:
+    result = subprocess.run(
+        ['twm', '--format', 'json', 'workspaces'],
+        capture_output=True,
+        text=True,
+        check=True
+    )
+    data = json.loads(result.stdout)
+except subprocess.CalledProcessError as e:
+    print(f"Command failed: {e}")
+except json.JSONDecodeError as e:
+    print(f"JSON parsing failed: {e}")
+```
+
+### Command Not Found After Installation
+
+If `twm` command is not found after installation:
+
+1. **Verify installation**
+   ```bash
+   cargo install --path crates/cli --force
+   ```
+
+2. **Check cargo bin directory is in PATH**
+   ```bash
+   # Windows PowerShell
+   $env:PATH -split ';' | Select-String cargo
+   
+   # Add to PATH if needed
+   $env:PATH += ";$env:USERPROFILE\.cargo\bin"
+   ```
+
+3. **Use full path as workaround**
+   ```bash
+   C:\Users\<username>\.cargo\bin\twm.exe --help
+   ```
+
+4. **Restart terminal**
+   - Close and reopen terminal after installation
+   - PATH changes may require new session
+
 ## Advanced Usage
 
 ### Combining Commands
