@@ -6,6 +6,7 @@
 pub mod commands;
 pub mod config;
 pub mod event_loop;
+pub mod ipc;
 pub mod keybinds;
 pub mod rules;
 pub mod utils;
