@@ -6,3 +6,4 @@
 pub mod module;
 pub mod config;
 pub mod ipc_client;
+pub mod modules;
