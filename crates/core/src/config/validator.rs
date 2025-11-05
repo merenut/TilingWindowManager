@@ -118,6 +118,22 @@ impl ConfigValidator {
                 );
             }
             
+            // Validate regex patterns
+            if let Some(ref pattern) = rule.match_process {
+                regex::Regex::new(pattern)
+                    .with_context(|| format!("Invalid regex in rule {} match_process: '{}'", i, pattern))?;
+            }
+            
+            if let Some(ref pattern) = rule.match_title {
+                regex::Regex::new(pattern)
+                    .with_context(|| format!("Invalid regex in rule {} match_title: '{}'", i, pattern))?;
+            }
+            
+            if let Some(ref pattern) = rule.match_class {
+                regex::Regex::new(pattern)
+                    .with_context(|| format!("Invalid regex in rule {} match_class: '{}'", i, pattern))?;
+            }
+            
             // Validate actions
             if rule.actions.is_empty() {
                 anyhow::bail!("Window rule {} must have at least one action", i);
@@ -283,3 +299,7 @@ impl ConfigValidator {
         parts[0].parse::<i32>().is_ok() && parts[1].parse::<i32>().is_ok()
     }
 }
+
+#[cfg(test)]
+#[path = "validator_tests.rs"]
+mod validator_tests;
