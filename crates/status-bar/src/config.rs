@@ -433,10 +433,10 @@ mod tests {
         let config_path = temp_dir.path().join("status-bar.toml");
         
         // Write minimal config - only height specified
-        let minimal_toml = r#"
+        let minimal_toml = "\
 [bar]
 height = 50
-"#;
+";
         std::fs::write(&config_path, minimal_toml).unwrap();
         
         let loader = ConfigLoader::from_path(config_path);
