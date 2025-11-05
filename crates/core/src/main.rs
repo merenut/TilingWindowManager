@@ -6,6 +6,7 @@
 mod commands;
 mod config;
 mod event_loop;
+mod keybinds;
 mod rules;
 mod utils;
 mod window_manager;
@@ -20,6 +21,7 @@ use tracing::{error, info, warn};
 use commands::{Command, CommandExecutor};
 use config::{ConfigLoader, ConfigValidator, ConfigWatcher};
 use event_loop::{EventLoop, WindowEvent};
+use keybinds::KeybindManager;
 use window_manager::WindowManager;
 
 #[cfg(target_os = "windows")]
@@ -73,6 +75,17 @@ fn main() -> Result<()> {
     event_loop.start()?;
     info!("Event loop started successfully");
 
+    // Set up keybind manager
+    info!("Registering keybindings...");
+    let mut keybind_manager = KeybindManager::new();
+    match keybind_manager.register_keybinds(config.keybinds.clone()) {
+        Ok(()) => info!("Keybindings registered successfully"),
+        Err(e) => {
+            warn!("Failed to register some keybindings: {}", e);
+            warn!("Some hotkeys may not be available");
+        }
+    }
+
     // Scan and manage existing windows
     info!("Scanning for existing windows...");
     scan_and_manage_windows(&mut wm)?;
@@ -109,8 +122,8 @@ fn main() -> Result<()> {
 
     info!("Starting main event loop with command system integration...");
 
-    // Main event loop with command executor and config hot-reload
-    run_event_loop(&mut wm, &mut event_loop, &executor, &running, config_watcher, &config_loader)?;
+    // Main event loop with command executor, keybinds, and config hot-reload
+    run_event_loop(&mut wm, &mut event_loop, &executor, &mut keybind_manager, &running, config_watcher, &config_loader)?;
 
     // Clean shutdown
     info!("Stopping event loop...");
@@ -233,7 +246,7 @@ fn scan_and_manage_windows(wm: &mut WindowManager) -> Result<()> {
 ///
 /// This is the core loop that:
 /// - Processes Windows messages
-/// - Polls for window events
+/// - Polls for window events and hotkeys
 /// - Checks for configuration changes and reloads
 /// - Uses CommandExecutor for window operations
 /// - Logs all significant events and command executions
@@ -241,6 +254,7 @@ fn run_event_loop(
     wm: &mut WindowManager,
     event_loop: &mut EventLoop,
     executor: &CommandExecutor,
+    keybind_manager: &mut KeybindManager,
     running: &Arc<AtomicBool>,
     mut config_watcher: Option<ConfigWatcher>,
     config_loader: &ConfigLoader,
@@ -252,7 +266,7 @@ fn run_event_loop(
         if let Some(ref mut watcher) = config_watcher {
             if watcher.check_for_changes() {
                 info!("Configuration change detected, reloading...");
-                match reload_configuration(wm, config_loader) {
+                match reload_configuration(wm, keybind_manager, config_loader) {
                     Ok(()) => {
                         info!("✓ Configuration reloaded successfully");
                     }
@@ -264,15 +278,15 @@ fn run_event_loop(
             }
         }
 
-        // Process Windows messages
+        // Process Windows messages (includes hotkeys)
         if let Err(e) = event_loop.process_messages() {
             error!("Error processing messages: {}", e);
         }
 
         // Poll for window events and handle them via command system
         for event in event_loop.poll_events() {
-            if let Err(e) = handle_window_event(wm, executor, event) {
-                error!("Error handling window event: {}", e);
+            if let Err(e) = handle_event(wm, executor, keybind_manager, event) {
+                error!("Error handling event: {}", e);
             }
         }
 
@@ -293,7 +307,11 @@ fn run_event_loop(
 /// 4. Updates rules and keybindings
 ///
 /// If any step fails, the previous configuration remains active.
-fn reload_configuration(wm: &mut WindowManager, config_loader: &ConfigLoader) -> Result<()> {
+fn reload_configuration(
+    wm: &mut WindowManager,
+    keybind_manager: &mut KeybindManager,
+    config_loader: &ConfigLoader,
+) -> Result<()> {
     use std::time::Instant;
     
     let start = Instant::now();
@@ -310,6 +328,11 @@ fn reload_configuration(wm: &mut WindowManager, config_loader: &ConfigLoader) ->
     wm.update_config(&config)
         .map_err(|e| anyhow::anyhow!("Failed to apply configuration: {}", e))?;
     
+    // Update keybindings
+    keybind_manager
+        .register_keybinds(config.keybinds.clone())
+        .map_err(|e| anyhow::anyhow!("Failed to register keybindings: {}", e))?;
+    
     let elapsed = start.elapsed();
     info!("Configuration reload completed in {:?}", elapsed);
     
@@ -324,14 +347,15 @@ fn reload_configuration(wm: &mut WindowManager, config_loader: &ConfigLoader) ->
     Ok(())
 }
 
-/// Handle a window event by dispatching to the appropriate window manager action.
+/// Handle an event (window or hotkey) by dispatching to the appropriate action.
 ///
-/// This function serves as the bridge between raw window events and the command system.
-/// All window operations go through the CommandExecutor for consistent handling and logging.
+/// This function serves as the bridge between raw events and the command system.
+/// All operations go through the CommandExecutor for consistent handling and logging.
 #[cfg(target_os = "windows")]
-fn handle_window_event(
+fn handle_event(
     wm: &mut WindowManager,
     executor: &CommandExecutor,
+    keybind_manager: &KeybindManager,
     event: WindowEvent,
 ) -> Result<()> {
     use tracing::debug;
@@ -425,16 +449,33 @@ fn handle_window_event(
             wm.tile_workspace(wm.get_active_workspace())?;
             info!("RESULT: Monitors refreshed and workspace retiled");
         }
+
+        WindowEvent::HotkeyPressed(hotkey_id) => {
+            debug!("EVENT: Hotkey pressed (ID: {})", hotkey_id);
+            
+            // Look up the command for this hotkey
+            if let Some((command, args)) = keybind_manager.get_command(hotkey_id) {
+                info!("HOTKEY: Executing command '{}' with args {:?}", command, args);
+                
+                // Parse and execute the command
+                if let Err(e) = execute_command_from_string(executor, wm, command, args) {
+                    error!("Failed to execute hotkey command '{}': {}", command, e);
+                }
+            } else {
+                warn!("Received hotkey event for unknown ID: {}", hotkey_id);
+            }
+        }
     }
 
     Ok(())
 }
 
-/// Handle a window event by dispatching to the appropriate window manager action (stub for non-Windows).
+/// Handle an event by dispatching to the appropriate action (stub for non-Windows).
 #[cfg(not(target_os = "windows"))]
-fn handle_window_event(
+fn handle_event(
     wm: &mut WindowManager,
     _executor: &CommandExecutor,
+    _keybind_manager: &KeybindManager,
     event: WindowEvent,
 ) -> Result<()> {
     match event {
@@ -445,7 +486,114 @@ fn handle_window_event(
             wm.tile_workspace(wm.get_active_workspace())?;
             info!("RESULT: Monitors refreshed and workspace retiled");
         }
+        WindowEvent::HotkeyPressed(_) => {
+            // Hotkeys not supported on non-Windows platforms
+            warn!("Hotkey events are only supported on Windows");
+        }
     }
 
+    Ok(())
+}
+
+/// Execute a command from a string representation.
+///
+/// This function parses a command string and optional arguments, then executes
+/// the corresponding command through the CommandExecutor.
+///
+/// Note: Currently most commands don't use arguments. The `exec` command would
+/// use arguments to launch applications, but that functionality is not yet
+/// implemented in the Command enum. This will be added in a future phase.
+fn execute_command_from_string(
+    executor: &CommandExecutor,
+    wm: &mut WindowManager,
+    command_str: &str,
+    args: &[String],
+) -> Result<()> {
+    use tracing::debug;
+    
+    // Log if arguments are provided (for future exec command support)
+    if !args.is_empty() {
+        debug!("Command '{}' called with args: {:?}", command_str, args);
+    }
+    
+    // Parse command string to Command enum
+    // 
+    // Design Note: This uses a simple match statement for command parsing rather than
+    // a more complex dynamic approach (e.g., FromStr trait, command registry) for
+    // several reasons:
+    // 1. Simplicity and clarity - easy to see all supported commands
+    // 2. Compile-time checking - typos in command strings caught by clippy
+    // 3. Performance - match is optimized by compiler, no runtime parsing overhead
+    // 4. Type safety - direct mapping to Command enum variants
+    //
+    // To add new commands:
+    // 1. Add the variant to Command enum in commands.rs
+    // 2. Add a case to this match statement
+    // 3. Document in KEYBINDINGS_GUIDE.md
+    let command = match command_str {
+        // Window commands
+        "close" => Command::CloseActiveWindow,
+        "toggle-floating" => Command::ToggleFloating,
+        "toggle-fullscreen" => Command::ToggleFullscreen,
+        "minimize" => Command::MinimizeActive,
+        "restore" => Command::RestoreActive,
+        
+        // Focus commands
+        "focus-left" => Command::FocusLeft,
+        "focus-right" => Command::FocusRight,
+        "focus-up" => Command::FocusUp,
+        "focus-down" => Command::FocusDown,
+        "focus-previous" => Command::FocusPrevious,
+        "focus-next" => Command::FocusNext,
+        
+        // Move commands
+        "move-left" => Command::MoveWindowLeft,
+        "move-right" => Command::MoveWindowRight,
+        "move-up" => Command::MoveWindowUp,
+        "move-down" => Command::MoveWindowDown,
+        "swap-master" => Command::SwapWithMaster,
+        
+        // Layout commands
+        "layout-dwindle" => Command::SetLayoutDwindle,
+        "layout-master" => Command::SetLayoutMaster,
+        "increase-master" => Command::IncreaseMasterCount,
+        "decrease-master" => Command::DecreaseMasterCount,
+        "increase-master-factor" => Command::IncreaseMasterFactor,
+        "decrease-master-factor" => Command::DecreaseMasterFactor,
+        
+        // Workspace commands
+        "workspace-1" => Command::SwitchWorkspace(1),
+        "workspace-2" => Command::SwitchWorkspace(2),
+        "workspace-3" => Command::SwitchWorkspace(3),
+        "workspace-4" => Command::SwitchWorkspace(4),
+        "workspace-5" => Command::SwitchWorkspace(5),
+        "workspace-6" => Command::SwitchWorkspace(6),
+        "workspace-7" => Command::SwitchWorkspace(7),
+        "workspace-8" => Command::SwitchWorkspace(8),
+        "workspace-9" => Command::SwitchWorkspace(9),
+        "workspace-10" => Command::SwitchWorkspace(10),
+        
+        "move-to-workspace-1" => Command::MoveToWorkspace(1),
+        "move-to-workspace-2" => Command::MoveToWorkspace(2),
+        "move-to-workspace-3" => Command::MoveToWorkspace(3),
+        "move-to-workspace-4" => Command::MoveToWorkspace(4),
+        "move-to-workspace-5" => Command::MoveToWorkspace(5),
+        
+        // System commands
+        "reload-config" => Command::Reload,
+        "exit" | "quit" => Command::Quit,
+        
+        // Unknown command
+        _ => {
+            warn!("Unknown command: {}", command_str);
+            return Ok(());
+        }
+    };
+    
+    debug!("Parsed command: {:?}", command);
+    
+    // Execute the command
+    executor.execute(command, wm)?;
+    
     Ok(())
 }
