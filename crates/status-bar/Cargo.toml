@@ -3,7 +3,43 @@ name = "tiling-wm-status-bar"
 version = "0.1.0"
 edition = "2021"
 
+[[bin]]
+name = "twm-bar"
+path = "src/main.rs"
+
 [dependencies]
-anyhow = { workspace = true }
+# UI Framework
+iced = { version = "0.13", features = ["tokio"] }
+
+# Async runtime
+tokio = { workspace = true }
+
+# Serialization
 serde = { workspace = true }
 serde_json = { workspace = true }
+toml = { workspace = true }
+
+# System information
+sysinfo = "0.30"
+battery = "0.7"
+# netstat2 = "0.9"  # Disabled due to compilation issues, will enable when implementing network module
+
+# Date/Time
+chrono = "0.4"
+
+# Windows API
+windows = { workspace = true }
+
+# Error handling
+anyhow = { workspace = true }
+thiserror = { workspace = true }
+
+# Logging
+tracing = { workspace = true }
+tracing-subscriber = { workspace = true }
+
+# Utilities
+dirs = "5.0"
+
+[dev-dependencies]
+mockall = "0.12"
