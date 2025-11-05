@@ -170,10 +170,12 @@ impl RequestHandler {
         let wsm = self.workspace_manager.lock().await;
         let active_workspace = wsm.active_workspace();
         
-        // Iterate through workspace IDs (typically 1-10)
+        // Iterate through workspace IDs
+        // Note: We check up to 20 workspaces to accommodate various configurations
+        // Only workspaces that exist will be included in the response
         let mut workspace_infos: Vec<WorkspaceInfo> = Vec::new();
         
-        for id in 1..=10 {
+        for id in 1..=20 {
             if let Some(ws) = wsm.get_workspace(id) {
                 workspace_infos.push(WorkspaceInfo {
                     id: ws.id,
@@ -212,7 +214,9 @@ impl RequestHandler {
                 x: mon.work_area.x,
                 y: mon.work_area.y,
                 scale: mon.dpi_scale,
-                primary: Some(idx == 0), // Assume first monitor is primary
+                // Note: Primary monitor detection would ideally come from the OS
+                // For now, we assume the first monitor is primary as a reasonable default
+                primary: Some(idx == 0),
                 active_workspace: mon.active_workspace,
             })
             .collect();
@@ -231,10 +235,14 @@ impl RequestHandler {
         
         // Note: This is a placeholder implementation
         // In a full implementation, this would return actual configuration
+        let wsm = self.workspace_manager.lock().await;
+        let workspace_count = wsm.workspace_count();
+        drop(wsm);
+        
         let config_info = ConfigInfo {
             version: "1.0.0".to_string(),
             config_path: "config.toml".to_string(),
-            workspaces_count: 9,
+            workspaces_count: workspace_count,
             layouts: vec!["dwindle".to_string(), "master".to_string()],
             current_layout: "dwindle".to_string(),
         };

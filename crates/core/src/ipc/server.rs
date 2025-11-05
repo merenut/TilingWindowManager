@@ -486,7 +486,7 @@ impl IpcServer {
                 if let Some(handler) = &self.request_handler {
                     handler.handle_request(request).await
                 } else {
-                    Response::error("Request handler not configured. Server requires integration with window manager.")
+                    Response::error("Request handler not configured. Use IpcServer::with_handler() to configure the request handler.")
                 }
             }
         }
