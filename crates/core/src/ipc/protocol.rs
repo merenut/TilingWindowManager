@@ -50,6 +50,10 @@ pub enum Request {
     
     // Command execution
     /// Execute a generic command with arguments
+    ///
+    /// The command string should match one of the built-in commands supported
+    /// by the window manager. Arguments are command-specific and should be
+    /// validated by the command handler.
     Execute {
         command: String,
         #[serde(default)]
@@ -108,6 +112,9 @@ pub enum Request {
     
     // Layout commands
     /// Set the layout for the current workspace
+    ///
+    /// Common layout names include "dwindle", "master", etc.
+    /// Invalid layout names will be rejected by the window manager.
     SetLayout {
         layout: String,
     },

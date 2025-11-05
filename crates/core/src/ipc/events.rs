@@ -8,6 +8,10 @@ use serde_json::json;
 use tokio::sync::broadcast::{channel, Receiver, Sender};
 
 /// Event types that can be broadcast to IPC clients
+///
+/// Note: Window handles (hwnd) are stored as isize internally to match
+/// the Windows HWND type, but are converted to strings when sent over IPC
+/// to ensure JSON compatibility and cross-language interoperability.
 #[derive(Debug, Clone)]
 pub enum Event {
     /// Window was created
@@ -83,8 +87,14 @@ impl EventBroadcaster {
     }
     
     /// Emit an event to all subscribers
+    ///
+    /// If there are no subscribers, the event is dropped silently.
+    /// This is expected behavior for a broadcast channel.
     pub fn emit(&self, event: Event) {
         tracing::debug!("Broadcasting event: {:?}", event);
+        // It's acceptable to ignore the error here because broadcast channels
+        // return an error when there are no receivers, which is a valid state.
+        // The event is simply dropped if no one is listening.
         let _ = self.sender.send(event);
     }
     
