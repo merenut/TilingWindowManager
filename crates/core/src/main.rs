@@ -15,9 +15,10 @@ use anyhow::Result;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
 use std::time::Duration;
-use tracing::{error, info};
+use tracing::{error, info, warn};
 
 use commands::{Command, CommandExecutor};
+use config::{ConfigLoader, ConfigValidator, ConfigWatcher};
 use event_loop::{EventLoop, WindowEvent};
 use window_manager::WindowManager;
 
@@ -29,8 +30,8 @@ fn main() -> Result<()> {
     initialize_logging();
 
     info!("==============================================");
-    info!("Starting Tiling Window Manager v0.2.0");
-    info!("Phase 2: Command System Integration Complete");
+    info!("Starting Tiling Window Manager v0.3.0");
+    info!("Phase 4: Configuration Hot-Reload Active");
     info!("==============================================");
 
     // Set up Ctrl+C handler
@@ -42,10 +43,28 @@ fn main() -> Result<()> {
         running_clone.store(false, Ordering::SeqCst);
     })?;
 
-    // Initialize window manager
+    // Load configuration
+    info!("Loading configuration...");
+    let config_loader = ConfigLoader::new()?;
+    let config = config_loader.load()?;
+    info!("Configuration loaded from: {:?}", config_loader.get_config_path());
+
+    // Validate configuration
+    if let Err(e) = ConfigValidator::validate(&config) {
+        error!("Configuration validation failed: {}", e);
+        return Err(e);
+    }
+    info!("Configuration validated successfully");
+
+    // Initialize window manager with configuration
     info!("Initializing window manager...");
     let mut wm = WindowManager::new();
     wm.initialize()?;
+    
+    // Apply initial configuration
+    if let Err(e) = wm.update_config(&config) {
+        warn!("Failed to apply initial configuration: {}", e);
+    }
     info!("Window manager initialized successfully");
 
     // Set up event loop
@@ -58,9 +77,26 @@ fn main() -> Result<()> {
     info!("Scanning for existing windows...");
     scan_and_manage_windows(&mut wm)?;
 
+    // Set up configuration watcher for hot-reload
+    info!("Starting configuration watcher...");
+    let config_watcher = match ConfigWatcher::new(config_loader.get_config_path().clone()) {
+        Ok(watcher) => {
+            info!("Configuration hot-reload enabled");
+            Some(watcher)
+        }
+        Err(e) => {
+            warn!("Failed to start configuration watcher: {}", e);
+            warn!("Hot-reload will not be available");
+            None
+        }
+    };
+
     info!("==============================================");
     info!("Tiling Window Manager is now running");
     info!("Press Ctrl+C to exit");
+    if config_watcher.is_some() {
+        info!("Configuration hot-reload is active");
+    }
     info!("==============================================");
 
     // Initialize command executor for handling commands
@@ -73,8 +109,8 @@ fn main() -> Result<()> {
 
     info!("Starting main event loop with command system integration...");
 
-    // Main event loop with command executor
-    run_event_loop(&mut wm, &mut event_loop, &executor, &running)?;
+    // Main event loop with command executor and config hot-reload
+    run_event_loop(&mut wm, &mut event_loop, &executor, &running, config_watcher, &config_loader)?;
 
     // Clean shutdown
     info!("Stopping event loop...");
@@ -198,6 +234,7 @@ fn scan_and_manage_windows(wm: &mut WindowManager) -> Result<()> {
 /// This is the core loop that:
 /// - Processes Windows messages
 /// - Polls for window events
+/// - Checks for configuration changes and reloads
 /// - Uses CommandExecutor for window operations
 /// - Logs all significant events and command executions
 fn run_event_loop(
@@ -205,10 +242,28 @@ fn run_event_loop(
     event_loop: &mut EventLoop,
     executor: &CommandExecutor,
     running: &Arc<AtomicBool>,
+    mut config_watcher: Option<ConfigWatcher>,
+    config_loader: &ConfigLoader,
 ) -> Result<()> {
     info!("Event loop running - processing window events via command system");
 
     while running.load(Ordering::SeqCst) {
+        // Check for configuration changes
+        if let Some(ref mut watcher) = config_watcher {
+            if watcher.check_for_changes() {
+                info!("Configuration change detected, reloading...");
+                match reload_configuration(wm, config_loader) {
+                    Ok(()) => {
+                        info!("✓ Configuration reloaded successfully");
+                    }
+                    Err(e) => {
+                        error!("✗ Failed to reload configuration: {}", e);
+                        error!("Continuing with previous configuration");
+                    }
+                }
+            }
+        }
+
         // Process Windows messages
         if let Err(e) = event_loop.process_messages() {
             error!("Error processing messages: {}", e);
@@ -226,6 +281,46 @@ fn run_event_loop(
     }
 
     info!("Event loop shutting down gracefully");
+    Ok(())
+}
+
+/// Reload configuration from disk and apply to window manager
+///
+/// This function:
+/// 1. Loads the new configuration from disk
+/// 2. Validates the configuration
+/// 3. Applies it to the window manager
+/// 4. Updates rules and keybindings
+///
+/// If any step fails, the previous configuration remains active.
+fn reload_configuration(wm: &mut WindowManager, config_loader: &ConfigLoader) -> Result<()> {
+    use std::time::Instant;
+    
+    let start = Instant::now();
+    
+    // Load new configuration
+    let config = config_loader.load()
+        .map_err(|e| anyhow::anyhow!("Failed to load configuration: {}", e))?;
+    
+    // Validate configuration
+    ConfigValidator::validate(&config)
+        .map_err(|e| anyhow::anyhow!("Configuration validation failed: {}", e))?;
+    
+    // Apply to window manager
+    wm.update_config(&config)
+        .map_err(|e| anyhow::anyhow!("Failed to apply configuration: {}", e))?;
+    
+    let elapsed = start.elapsed();
+    info!("Configuration reload completed in {:?}", elapsed);
+    
+    // Check if reload meets performance target
+    if elapsed > Duration::from_millis(100) {
+        warn!(
+            "Configuration reload took {:?}, exceeds 100ms target",
+            elapsed
+        );
+    }
+    
     Ok(())
 }
 
