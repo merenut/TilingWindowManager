@@ -30,6 +30,7 @@
 //! ```
 
 pub mod events;
+pub mod handler;
 pub mod protocol;
 pub mod server;
 
@@ -39,7 +40,9 @@ mod client;
 
 // Re-export commonly used types
 pub use events::{Event, EventBroadcaster};
+pub use handler::RequestHandler;
 pub use protocol::{
     ConfigInfo, MonitorInfo, ProtocolVersion, RectInfo, Request, Response, VersionInfo,
     WindowInfo, WindowState, WorkspaceInfo, PROTOCOL_VERSION,
 };
+pub use server::IpcServer;
