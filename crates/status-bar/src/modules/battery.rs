@@ -103,20 +103,16 @@ impl BatteryModule {
     
     fn get_icon(&self) -> &str {
         match self.state {
-            BatteryState::Charging => "",
-            BatteryState::Full => "",
+            BatteryState::Charging => "🔌",
+            BatteryState::Full => "🔋",
             BatteryState::Discharging => {
-                if self.percentage > 75.0 {
-                    ""
-                } else if self.percentage > 50.0 {
-                    ""
-                } else if self.percentage > 25.0 {
-                    ""
+                if self.percentage > 50.0 {
+                    "🔋"
                 } else {
-                    ""
+                    "🪫"
                 }
             }
-            BatteryState::Unknown => "",
+            BatteryState::Unknown => "❓",
         }
     }
     
