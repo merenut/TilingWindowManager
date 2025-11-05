@@ -4,7 +4,7 @@ use std::time::Duration;
 use tracing::{info, error};
 
 use tiling_wm_status_bar::module::{Message, ModuleRegistry, Position};
-use tiling_wm_status_bar::config::{BarConfig, ConfigLoader, BarPosition};
+use tiling_wm_status_bar::config::{BarConfig, ConfigLoader};
 use tiling_wm_status_bar::modules;
 
 struct StatusBar {
@@ -15,6 +15,7 @@ struct StatusBar {
     config: BarConfig,
     
     /// IPC client
+    #[allow(dead_code)]
     ipc_client: Option<tiling_wm_status_bar::ipc_client::IpcClient>,
 }
 
@@ -195,5 +196,5 @@ fn main() -> iced::Result {
     iced::application("Tiling WM Status Bar", StatusBar::update, StatusBar::view)
         .subscription(StatusBar::subscription)
         .theme(StatusBar::theme)
-        .run_with(|| StatusBar::new())
+        .run_with(StatusBar::new)
 }
