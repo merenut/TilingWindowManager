@@ -499,15 +499,37 @@ fn handle_event(
 ///
 /// This function parses a command string and optional arguments, then executes
 /// the corresponding command through the CommandExecutor.
+///
+/// Note: Currently most commands don't use arguments. The `exec` command would
+/// use arguments to launch applications, but that functionality is not yet
+/// implemented in the Command enum. This will be added in a future phase.
 fn execute_command_from_string(
     executor: &CommandExecutor,
     wm: &mut WindowManager,
     command_str: &str,
-    _args: &[String],
+    args: &[String],
 ) -> Result<()> {
     use tracing::debug;
     
+    // Log if arguments are provided (for future exec command support)
+    if !args.is_empty() {
+        debug!("Command '{}' called with args: {:?}", command_str, args);
+    }
+    
     // Parse command string to Command enum
+    // 
+    // Design Note: This uses a simple match statement for command parsing rather than
+    // a more complex dynamic approach (e.g., FromStr trait, command registry) for
+    // several reasons:
+    // 1. Simplicity and clarity - easy to see all supported commands
+    // 2. Compile-time checking - typos in command strings caught by clippy
+    // 3. Performance - match is optimized by compiler, no runtime parsing overhead
+    // 4. Type safety - direct mapping to Command enum variants
+    //
+    // To add new commands:
+    // 1. Add the variant to Command enum in commands.rs
+    // 2. Add a case to this match statement
+    // 3. Document in KEYBINDINGS_GUIDE.md
     let command = match command_str {
         // Window commands
         "close" => Command::CloseActiveWindow,

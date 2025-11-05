@@ -136,9 +136,11 @@ impl KeybindManager {
     ///
     /// Returns None if the hotkey ID is not registered.
     pub fn get_command(&self, hotkey_id: i32) -> Option<(&String, &Vec<String>)> {
-        self.bindings
-            .get(&hotkey_id)
-            .map(|cmd| (cmd, self.arguments.get(&hotkey_id).unwrap()))
+        self.bindings.get(&hotkey_id).and_then(|cmd| {
+            self.arguments
+                .get(&hotkey_id)
+                .map(|args| (cmd, args))
+        })
     }
 
     /// Parse modifier keys from string representations.
