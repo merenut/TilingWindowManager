@@ -25,7 +25,7 @@ const FILE_FLAG_OVERLAPPED: u32 = 0x40000000;
 const DEFAULT_RETRY_DELAY_SECS: u64 = 5;
 
 /// Maximum message size in bytes (1MB) to prevent DoS via large allocations
-#[cfg(windows)]
+#[cfg_attr(not(windows), allow(dead_code))]
 const MAX_MESSAGE_SIZE: usize = 1024 * 1024;
 
 /// IPC client for connecting to the window manager
@@ -192,10 +192,10 @@ impl IpcClient {
     }
     
     /// Send a request and receive response
-    async fn send_request(&self, _request: &Value) -> Result<Value> {
+    #[cfg_attr(not(windows), allow(unused_variables))]
+    async fn send_request(&self, request: &Value) -> Result<Value> {
         #[cfg(windows)]
         {
-            let request = _request;
             // Open pipe connection
             let mut pipe = self.open_pipe()?;
             
@@ -377,7 +377,7 @@ impl IpcClient {
     
     /// Parse JSON event into IpcEvent
     #[cfg_attr(not(windows), allow(dead_code))]
-    pub(crate) fn parse_event(value: &Value) -> Option<IpcEvent> {
+    fn parse_event(value: &Value) -> Option<IpcEvent> {
         // Check if this is an event response
         let event_type = value.get("type")?.as_str()?;
         
