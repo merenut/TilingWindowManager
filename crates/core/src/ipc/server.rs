@@ -346,7 +346,10 @@ impl IpcServer {
         
         let len = u32::from_le_bytes(len_buf) as usize;
         
-        // Sanity check: reject messages larger than 10MB
+        // Sanity checks
+        if len == 0 {
+            anyhow::bail!("Request length cannot be zero");
+        }
         if len > 10 * 1024 * 1024 {
             anyhow::bail!("Request too large: {} bytes (max 10MB)", len);
         }
@@ -635,13 +638,27 @@ mod tests {
     #[tokio::test]
     async fn test_request_framing_size_check() {
         // Test that oversized requests are rejected
-        let mut data = vec![0xFF, 0xFF, 0xFF, 0xFF]; // Max u32 value
+        let data = vec![0xFF, 0xFF, 0xFF, 0xFF]; // Max u32 value
         let mut cursor = std::io::Cursor::new(data);
         
         let result = IpcServer::read_request(&mut cursor).await;
         assert!(result.is_err());
         if let Err(e) = result {
             assert!(e.to_string().contains("too large"));
+        }
+    }
+    
+    #[cfg(windows)]
+    #[tokio::test]
+    async fn test_request_framing_zero_length() {
+        // Test that zero-length requests are rejected
+        let data = vec![0x00, 0x00, 0x00, 0x00]; // Zero length
+        let mut cursor = std::io::Cursor::new(data);
+        
+        let result = IpcServer::read_request(&mut cursor).await;
+        assert!(result.is_err());
+        if let Err(e) = result {
+            assert!(e.to_string().contains("cannot be zero"));
         }
     }
 }
