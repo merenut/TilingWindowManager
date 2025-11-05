@@ -56,8 +56,15 @@ impl WindowTitleModule {
     }
     
     fn truncate_title(&self, title: &str) -> String {
-        if title.len() > self.window_config.max_length {
-            format!("{}...", &title[..self.window_config.max_length - 3])
+        // Use char_indices for safe Unicode truncation
+        let char_count = title.chars().count();
+        if char_count > self.window_config.max_length {
+            let truncate_at = title
+                .char_indices()
+                .nth(self.window_config.max_length - 3)
+                .map(|(idx, _)| idx)
+                .unwrap_or(title.len());
+            format!("{}...", &title[..truncate_at])
         } else {
             title.to_string()
         }

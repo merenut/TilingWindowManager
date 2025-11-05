@@ -146,8 +146,8 @@ impl Module for WorkspacesModule {
     
     fn update(&mut self, message: Message) -> Option<Task<Message>> {
         match message {
-            Message::ModuleMessage { ref message, .. } => {
-                if let ModuleMessage::WorkspaceClicked(id) = **message {
+            Message::ModuleMessage { message: module_msg, .. } => {
+                if let ModuleMessage::WorkspaceClicked(id) = *module_msg {
                     // Send workspace switch command
                     return Some(Task::done(Message::SwitchWorkspace(id)));
                 }
