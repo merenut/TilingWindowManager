@@ -175,11 +175,17 @@ pub enum IpcEvent {
 pub fn parse_color(hex: &str) -> Color {
     let hex = hex.trim_start_matches('#');
     
+    // Validate minimum length for RGB
+    if hex.len() < 6 {
+        // Default to white for invalid input
+        return Color::from_rgb(1.0, 1.0, 1.0);
+    }
+    
     let r = u8::from_str_radix(&hex[0..2], 16).unwrap_or(255) as f32 / 255.0;
     let g = u8::from_str_radix(&hex[2..4], 16).unwrap_or(255) as f32 / 255.0;
     let b = u8::from_str_radix(&hex[4..6], 16).unwrap_or(255) as f32 / 255.0;
     
-    let a = if hex.len() == 8 {
+    let a = if hex.len() >= 8 {
         u8::from_str_radix(&hex[6..8], 16).unwrap_or(255) as f32 / 255.0
     } else {
         1.0
@@ -348,6 +354,24 @@ mod tests {
         // Should default to white (255, 255, 255) for invalid values
         let color = parse_color("#gggggg");
         assert_eq!(color, Color::from_rgb(1.0, 1.0, 1.0));
+    }
+    
+    #[test]
+    fn test_parse_color_short_string() {
+        // Should default to white for strings shorter than 6 characters
+        let color = parse_color("#fff");
+        assert_eq!(color, Color::from_rgb(1.0, 1.0, 1.0));
+        
+        let color2 = parse_color("#12");
+        assert_eq!(color2, Color::from_rgb(1.0, 1.0, 1.0));
+    }
+    
+    #[test]
+    fn test_parse_color_seven_chars() {
+        // Should handle 7-character hex strings (partial alpha) gracefully
+        let color = parse_color("#ff00001");
+        // Should parse RGB correctly and default alpha to 1.0
+        assert_eq!(color, Color::from_rgba(1.0, 0.0, 0.0, 1.0));
     }
     
     #[test]
