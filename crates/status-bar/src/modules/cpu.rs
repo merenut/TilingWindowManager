@@ -250,7 +250,7 @@ mod tests {
     #[test]
     fn test_tick_message_updates_usage() {
         let mut module = CpuModule::new();
-        let initial_usage = module.usage;
+        let _initial_usage = module.usage;
         
         // Update with Tick message
         let result = module.update(Message::Tick);
