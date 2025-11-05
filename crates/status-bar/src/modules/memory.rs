@@ -143,6 +143,9 @@ impl Default for MemoryModule {
 mod tests {
     use super::*;
 
+    // Test constant for GB conversion to avoid magic numbers
+    const GB_IN_BYTES: u64 = 1024 * 1024 * 1024;
+
     #[test]
     fn test_memory_module_creation() {
         let module = MemoryModule::new();
@@ -189,8 +192,8 @@ mod tests {
     fn test_format_text_default() {
         let mut module = MemoryModule::new();
         module.usage_percent = 65.5;
-        module.used_memory = 8 * 1024 * 1024 * 1024; // 8 GB in bytes
-        module.total_memory = 16 * 1024 * 1024 * 1024; // 16 GB in bytes
+        module.used_memory = 8 * GB_IN_BYTES; // 8 GB in bytes
+        module.total_memory = 16 * GB_IN_BYTES; // 16 GB in bytes
         
         let formatted = module.format_text();
         assert_eq!(formatted, " 65.5%");
@@ -210,8 +213,8 @@ mod tests {
     fn test_format_text_with_used_and_total() {
         let mut module = MemoryModule::new();
         module.memory_config.format = "{used}/{total} GB".to_string();
-        module.used_memory = 8 * 1024 * 1024 * 1024; // 8 GB
-        module.total_memory = 16 * 1024 * 1024 * 1024; // 16 GB
+        module.used_memory = 8 * GB_IN_BYTES; // 8 GB
+        module.total_memory = 16 * GB_IN_BYTES; // 16 GB
         
         let formatted = module.format_text();
         assert_eq!(formatted, "8.0/16.0 GB");
@@ -222,8 +225,8 @@ mod tests {
         let mut module = MemoryModule::new();
         module.memory_config.format = "{used}/{total} GB ({percentage}%)".to_string();
         module.usage_percent = 50.0;
-        module.used_memory = 4 * 1024 * 1024 * 1024; // 4 GB
-        module.total_memory = 8 * 1024 * 1024 * 1024; // 8 GB
+        module.used_memory = 4 * GB_IN_BYTES; // 4 GB
+        module.total_memory = 8 * GB_IN_BYTES; // 8 GB
         
         let formatted = module.format_text();
         assert_eq!(formatted, "4.0/8.0 GB (50.0%)");
@@ -244,7 +247,7 @@ mod tests {
         let mut module = MemoryModule::new();
         module.usage_percent = 0.0;
         module.used_memory = 0;
-        module.total_memory = 8 * 1024 * 1024 * 1024; // 8 GB
+        module.total_memory = 8 * GB_IN_BYTES; // 8 GB
         
         let formatted = module.format_text();
         assert_eq!(formatted, " 0.0%");
@@ -286,7 +289,7 @@ mod tests {
         // 512 MB in bytes for used
         module.used_memory = 512 * 1024 * 1024;
         // 2 GB in bytes for total
-        module.total_memory = 2 * 1024 * 1024 * 1024;
+        module.total_memory = 2 * GB_IN_BYTES;
         
         let formatted = module.format_text();
         assert_eq!(formatted, "0.5/2.0 GB");
@@ -419,8 +422,8 @@ mod tests {
     fn test_memory_calculation_edge_case_full() {
         let mut module = MemoryModule::new();
         // Simulate full memory usage
-        module.used_memory = 16 * 1024 * 1024 * 1024;
-        module.total_memory = 16 * 1024 * 1024 * 1024;
+        module.used_memory = 16 * GB_IN_BYTES;
+        module.total_memory = 16 * GB_IN_BYTES;
         module.usage_percent = (module.used_memory as f32 / module.total_memory as f32) * 100.0;
         
         assert_eq!(module.usage_percent, 100.0);
@@ -430,8 +433,8 @@ mod tests {
     fn test_memory_calculation_edge_case_half() {
         let mut module = MemoryModule::new();
         // Simulate half memory usage
-        module.used_memory = 8 * 1024 * 1024 * 1024;
-        module.total_memory = 16 * 1024 * 1024 * 1024;
+        module.used_memory = 8 * GB_IN_BYTES;
+        module.total_memory = 16 * GB_IN_BYTES;
         module.usage_percent = (module.used_memory as f32 / module.total_memory as f32) * 100.0;
         
         assert_eq!(module.usage_percent, 50.0);
