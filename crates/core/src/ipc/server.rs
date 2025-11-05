@@ -33,6 +33,7 @@
 //! ```
 
 use super::events::{Event, EventBroadcaster};
+use super::handler::RequestHandler;
 use super::protocol::{Request, Response};
 use anyhow::{Context, Result};
 use std::sync::Arc;
@@ -54,6 +55,9 @@ pub struct IpcServer {
     
     /// Event broadcaster for sending events to clients
     event_broadcaster: Arc<EventBroadcaster>,
+    
+    /// Request handler for processing IPC requests
+    request_handler: Option<Arc<RequestHandler>>,
     
     /// Server running state
     running: Arc<RwLock<bool>>,
@@ -83,6 +87,7 @@ impl IpcServer {
         Self {
             pipe_name: r"\\.\pipe\tiling-wm".to_string(),
             event_broadcaster,
+            request_handler: None,
             running: Arc::new(RwLock::new(false)),
             connection_count: Arc::new(Mutex::new(0)),
         }
@@ -108,6 +113,36 @@ impl IpcServer {
     /// ```
     pub fn with_pipe_name(mut self, name: impl Into<String>) -> Self {
         self.pipe_name = format!(r"\\.\pipe\{}", name.into());
+        self
+    }
+    
+    /// Set the request handler for processing IPC requests
+    ///
+    /// # Arguments
+    ///
+    /// * `handler` - Request handler for processing IPC requests
+    ///
+    /// # Example
+    ///
+    /// ```rust,no_run
+    /// use std::sync::Arc;
+    /// use tokio::sync::Mutex;
+    /// use tiling_wm_core::ipc::{IpcServer, EventBroadcaster, RequestHandler};
+    /// use tiling_wm_core::window_manager::WindowManager;
+    /// use tiling_wm_core::workspace::WorkspaceManager;
+    /// use tiling_wm_core::commands::CommandExecutor;
+    ///
+    /// let broadcaster = Arc::new(EventBroadcaster::new());
+    /// let wm = Arc::new(Mutex::new(WindowManager::new()));
+    /// let wsm = Arc::new(Mutex::new(WorkspaceManager::new()));
+    /// let executor = Arc::new(CommandExecutor::new());
+    /// let handler = Arc::new(RequestHandler::new(wm, wsm, executor));
+    ///
+    /// let server = IpcServer::new(broadcaster)
+    ///     .with_handler(handler);
+    /// ```
+    pub fn with_handler(mut self, handler: Arc<RequestHandler>) -> Self {
+        self.request_handler = Some(handler);
         self
     }
     
@@ -414,9 +449,8 @@ impl IpcServer {
     
     /// Process a request and return a response
     ///
-    /// This method handles subscription requests and returns placeholder responses
-    /// for other request types. In a full implementation, this would forward requests
-    /// to the window manager.
+    /// This method handles subscription requests directly and forwards all other
+    /// requests to the request handler if one is configured.
     async fn process_request(
         &self,
         request: Request,
@@ -426,8 +460,7 @@ impl IpcServer {
         debug!("Processing request: {:?}", request);
         
         match request {
-            Request::Ping => Response::Pong,
-            
+            // Handle subscription requests directly (server-level)
             Request::Subscribe { events } => {
                 if events.is_empty() {
                     Response::error("No events specified")
@@ -448,9 +481,14 @@ impl IpcServer {
                 Response::success()
             }
             
-            // Other requests would be forwarded to window manager
-            // For now, return placeholder responses
-            _ => Response::error("Request handler not implemented. This server requires integration with window manager."),
+            // Forward all other requests to the handler
+            _ => {
+                if let Some(handler) = &self.request_handler {
+                    handler.handle_request(request).await
+                } else {
+                    Response::error("Request handler not configured. Use IpcServer::with_handler() to configure the request handler.")
+                }
+            }
         }
     }
 }
