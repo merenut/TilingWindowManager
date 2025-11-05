@@ -31,10 +31,9 @@
 
 pub mod events;
 pub mod protocol;
+pub mod server;
 
-// Server and client modules are placeholders for future implementation
-#[allow(dead_code)]
-mod server;
+// Client module is a placeholder for future implementation
 #[allow(dead_code)]
 mod client;
 
