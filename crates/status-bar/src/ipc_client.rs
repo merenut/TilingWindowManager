@@ -17,25 +17,51 @@ use std::io::{Read, Write};
 #[cfg(windows)]
 use std::os::windows::fs::OpenOptionsExt;
 
+/// Windows file flag for overlapped I/O operations on named pipes
+#[cfg(windows)]
+const FILE_FLAG_OVERLAPPED: u32 = 0x40000000;
+
+/// Default retry delay in seconds when connection is lost
+const DEFAULT_RETRY_DELAY_SECS: u64 = 5;
+
 /// IPC client for connecting to the window manager
 #[derive(Clone)]
 pub struct IpcClient {
     /// Named pipe path
-    pub pipe_name: String,
+    pipe_name: String,
     /// Event sender for broadcasting events to modules
-    pub event_sender: Option<mpsc::UnboundedSender<IpcEvent>>,
+    event_sender: Option<mpsc::UnboundedSender<IpcEvent>>,
     /// Connection state
-    pub connected: Arc<Mutex<bool>>,
+    connected: Arc<Mutex<bool>>,
+    /// Retry delay in seconds
+    retry_delay_secs: u64,
 }
 
 impl IpcClient {
-    /// Create a new IPC client
+    /// Create a new IPC client with default settings
     pub fn new() -> Self {
         Self {
             pipe_name: r"\\.\pipe\tiling-wm".to_string(),
             event_sender: None,
             connected: Arc::new(Mutex::new(false)),
+            retry_delay_secs: DEFAULT_RETRY_DELAY_SECS,
         }
+    }
+    
+    /// Create a new IPC client with custom pipe name
+    pub fn with_pipe_name(pipe_name: String) -> Self {
+        Self {
+            pipe_name,
+            event_sender: None,
+            connected: Arc::new(Mutex::new(false)),
+            retry_delay_secs: DEFAULT_RETRY_DELAY_SECS,
+        }
+    }
+    
+    /// Set the retry delay in seconds
+    pub fn with_retry_delay(mut self, secs: u64) -> Self {
+        self.retry_delay_secs = secs;
+        self
     }
     
     /// Get the pipe name
@@ -217,8 +243,6 @@ impl IpcClient {
     
     #[cfg(windows)]
     fn open_pipe(&self) -> Result<std::fs::File> {
-        const FILE_FLAG_OVERLAPPED: u32 = 0x40000000;
-        
         OpenOptions::new()
             .read(true)
             .write(true)
@@ -235,6 +259,7 @@ impl IpcClient {
         
         let pipe_name = self.pipe_name.clone();
         let connected = self.connected.clone();
+        let retry_delay = self.retry_delay_secs;
         
         // Spawn background task for listening to events
         tokio::spawn(async move {
@@ -242,7 +267,7 @@ impl IpcClient {
                 // Check if we're connected
                 if !*connected.lock().await {
                     warn!("Not connected, waiting before retry...");
-                    tokio::time::sleep(tokio::time::Duration::from_secs(5)).await;
+                    tokio::time::sleep(tokio::time::Duration::from_secs(retry_delay)).await;
                     continue;
                 }
                 
@@ -254,7 +279,7 @@ impl IpcClient {
                         error!("Event listener error: {}", e);
                         *connected.lock().await = false;
                         // Wait before retrying
-                        tokio::time::sleep(tokio::time::Duration::from_secs(5)).await;
+                        tokio::time::sleep(tokio::time::Duration::from_secs(retry_delay)).await;
                     }
                 }
             }
@@ -270,8 +295,6 @@ impl IpcClient {
         connected: &Arc<Mutex<bool>>,
     ) -> Result<()> {
         info!("Starting event listener...");
-        
-        const FILE_FLAG_OVERLAPPED: u32 = 0x40000000;
         
         let mut pipe = OpenOptions::new()
             .read(true)
@@ -553,5 +576,25 @@ mod tests {
         
         let event = IpcClient::parse_event(&json);
         assert!(event.is_none());
+    }
+    
+    #[test]
+    fn test_with_pipe_name() {
+        let client = IpcClient::with_pipe_name(r"\\.\pipe\custom-wm".to_string());
+        assert_eq!(client.pipe_name(), r"\\.\pipe\custom-wm");
+    }
+    
+    #[test]
+    fn test_with_retry_delay() {
+        let client = IpcClient::new().with_retry_delay(10);
+        assert_eq!(client.retry_delay_secs, 10);
+    }
+    
+    #[test]
+    fn test_builder_pattern() {
+        let client = IpcClient::with_pipe_name(r"\\.\pipe\test".to_string())
+            .with_retry_delay(3);
+        assert_eq!(client.pipe_name(), r"\\.\pipe\test");
+        assert_eq!(client.retry_delay_secs, 3);
     }
 }
