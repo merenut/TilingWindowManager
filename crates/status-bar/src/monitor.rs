@@ -10,10 +10,13 @@ use windows::Win32::Graphics::Gdi::{
 #[cfg(target_os = "windows")]
 use windows::Win32::Foundation::{BOOL, LPARAM, RECT};
 
+#[cfg(target_os = "windows")]
 use std::sync::Mutex;
+#[cfg(target_os = "windows")]
 use once_cell::sync::Lazy;
 
 /// Global storage for enumerated monitors during enumeration callback
+#[cfg(target_os = "windows")]
 static MONITORS: Lazy<Mutex<Vec<MonitorInfo>>> = Lazy::new(|| Mutex::new(Vec::new()));
 
 /// Information about a monitor/display
