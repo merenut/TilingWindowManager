@@ -346,8 +346,7 @@ mod tests {
         // Should return all monitors (at least the mock one on non-Windows)
         #[cfg(not(target_os = "windows"))]
         assert_eq!(monitors.len(), 1);
-        #[cfg(target_os = "windows")]
-        assert!(monitors.len() > 0 || monitors.is_empty());
+        // On Windows, just verify the function works (count may vary)
     }
 
     #[test]

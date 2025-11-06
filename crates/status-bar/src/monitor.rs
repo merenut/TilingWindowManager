@@ -175,8 +175,7 @@ mod tests {
         // Should return a vector (always has at least one monitor in the mock)
         #[cfg(not(target_os = "windows"))]
         assert_eq!(monitors.len(), 1);
-        #[cfg(target_os = "windows")]
-        assert!(monitors.len() > 0 || monitors.is_empty());
+        // On Windows, just verify we get a Vec (count may vary)
     }
 
     #[test]
@@ -185,8 +184,7 @@ mod tests {
         // Should return a positive count (at least 1 in mock)
         #[cfg(not(target_os = "windows"))]
         assert_eq!(count, 1);
-        #[cfg(target_os = "windows")]
-        assert!(count > 0 || count == 0);
+        // On Windows, just verify the function works (count may vary)
     }
 
     #[test]
