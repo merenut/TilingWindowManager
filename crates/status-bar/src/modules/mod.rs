@@ -20,12 +20,13 @@ impl ModuleFactory {
     ///
     /// # Arguments
     /// * `name` - The name of the module to create (e.g., "workspaces", "clock")
-    /// * `_config` - The bar configuration containing module-specific settings (reserved for future use)
+    /// * `config` - The bar configuration containing module-specific settings (currently unused, reserved for future enhancements)
     ///
     /// # Returns
     /// * `Some(Box<dyn Module>)` if the module is known and available
     /// * `None` if the module is unknown or unavailable (e.g., battery on desktop)
-    pub fn create_module(name: &str, _config: &BarConfig) -> Option<Box<dyn Module>> {
+    pub fn create_module(name: &str, config: &BarConfig) -> Option<Box<dyn Module>> {
+        let _ = config; // Acknowledge parameter for future use
         match name {
             "workspaces" => {
                 tracing::debug!("Creating workspaces module");
@@ -193,13 +194,27 @@ mod tests {
         let config = BarConfig::default();
         let modules = ModuleFactory::create_all_modules(&config);
         
-        // Default config has: left=[workspaces], center=[], right=[cpu, memory, battery, clock]
-        // Battery may not be present on all systems
-        let expected_min = 4; // workspaces, cpu, memory, clock
-        let expected_max = 5; // + battery if available
+        // Calculate expected modules from actual default config
+        let mut expected_count = config.modules.left.len() 
+            + config.modules.center.len() 
+            + config.modules.right.len();
         
-        assert!(modules.len() >= expected_min);
-        assert!(modules.len() <= expected_max);
+        // Battery might not be available on all systems
+        if config.modules.left.contains(&"battery".to_string())
+            || config.modules.center.contains(&"battery".to_string())
+            || config.modules.right.contains(&"battery".to_string())
+        {
+            if !battery::BatteryModule::is_available() {
+                expected_count -= 1;
+            }
+        }
+        
+        assert_eq!(modules.len(), expected_count);
+        
+        // Verify at least some core modules are present
+        let module_names: Vec<&str> = modules.iter().map(|m| m.name()).collect();
+        assert!(module_names.contains(&"workspaces"), "workspaces module should be present");
+        assert!(module_names.contains(&"clock"), "clock module should be present");
     }
     
     #[test]
