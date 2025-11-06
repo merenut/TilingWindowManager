@@ -49,19 +49,13 @@ impl StatusBar {
         info!("Status bar starting...");
         info!("Height: {}, Position: {:?}", config.bar.height, config.bar.position);
         
-        // Create module registry and load modules
+        // Create module registry and load modules using ModuleFactory
         let mut modules = ModuleRegistry::new();
         
-        // Register modules based on configuration
-        modules.register(Box::new(modules::workspaces::WorkspacesModule::new()));
-        modules.register(Box::new(modules::window_title::WindowTitleModule::new()));
-        modules.register(Box::new(modules::clock::ClockModule::new()));
-        modules.register(Box::new(modules::cpu::CpuModule::new()));
-        modules.register(Box::new(modules::memory::MemoryModule::new()));
-        
-        // Only add battery module if battery is available
-        if modules::battery::BatteryModule::is_available() {
-            modules.register(Box::new(modules::battery::BatteryModule::new()));
+        // Load all modules from configuration
+        let module_list = modules::ModuleFactory::create_all_modules(&config);
+        for module in module_list {
+            modules.register(module);
         }
         
         info!("Loaded {} modules", modules.count());
