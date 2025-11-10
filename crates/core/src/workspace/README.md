@@ -16,7 +16,7 @@ The Virtual Desktop integration allows the tiling window manager to interact wit
 ### Usage Example
 
 ```rust
-use tiling_wm_core::workspace::VirtualDesktopManager;
+use tenraku_core::workspace::VirtualDesktopManager;
 
 fn main() -> anyhow::Result<()> {
     // Create a Virtual Desktop Manager

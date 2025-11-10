@@ -30,7 +30,7 @@ git clone https://github.com/merenut/TilingWindowManager.git
 cd TilingWindowManager
 
 # Build the CLI
-cargo build --package tiling-wm-cli --release
+cargo build --package tenrakuctl --release
 
 # The binary will be at: target/release/twm.exe
 ```
@@ -48,26 +48,26 @@ cargo install --path crates/cli
 ### Verifying Installation
 
 ```bash
-twm --version
+tenrakuctl --version
 ```
 
 ## Basic Usage
 
 ```bash
-twm [OPTIONS] <COMMAND>
+tenrakuctl [OPTIONS] <COMMAND>
 ```
 
 ### Getting Help
 
 ```bash
 # General help
-twm --help
+tenrakuctl --help
 
 # Command-specific help
-twm <command> --help
+tenrakuctl <command> --help
 
 # Example
-twm workspace --help
+tenrakuctl workspace --help
 ```
 
 ## Global Options
@@ -77,7 +77,7 @@ twm workspace --help
 Control the output format of responses:
 
 ```bash
-twm --format <FORMAT> <command>
+tenrakuctl --format <FORMAT> <command>
 ```
 
 Options: `json`, `table`, `compact`
@@ -86,9 +86,9 @@ Default: `table`
 
 Examples:
 ```bash
-twm --format json workspaces
-twm --format table workspaces
-twm --format compact workspaces
+tenrakuctl --format json workspaces
+tenrakuctl --format table workspaces
+tenrakuctl --format compact workspaces
 ```
 
 ### Named Pipe Path
@@ -96,14 +96,14 @@ twm --format compact workspaces
 Specify a custom named pipe path:
 
 ```bash
-twm --pipe <PATH> <command>
+tenrakuctl --pipe <PATH> <command>
 ```
 
-Default: `\\.\pipe\tiling-wm`
+Default: `\\\\.\\pipe\\tenraku`
 
 Example:
 ```bash
-twm --pipe \\.\pipe\custom-wm windows
+tenrakuctl --pipe \\.\pipe\custom-wm windows
 ```
 
 ## Commands
@@ -115,7 +115,7 @@ twm --pipe \\.\pipe\custom-wm windows
 Get a list of all windows or windows in a specific workspace.
 
 ```bash
-twm windows [OPTIONS]
+tenrakuctl windows [OPTIONS]
 ```
 
 **Options:**
@@ -124,13 +124,13 @@ twm windows [OPTIONS]
 **Examples:**
 ```bash
 # Get all windows
-twm windows
+tenrakuctl windows
 
 # Get windows in workspace 1
-twm windows --workspace 1
+tenrakuctl windows --workspace 1
 
 # Get windows in JSON format
-twm --format json windows
+tenrakuctl --format json windows
 ```
 
 **Output (table format):**
@@ -149,16 +149,16 @@ twm --format json windows
 Get information about the currently focused window.
 
 ```bash
-twm active-window
+tenrakuctl active-window
 ```
 
 **Examples:**
 ```bash
 # Get active window info
-twm active-window
+tenrakuctl active-window
 
 # Get active window in JSON format
-twm --format json active-window
+tenrakuctl --format json active-window
 ```
 
 **Output (table format):**
@@ -178,16 +178,16 @@ Success
 List all workspaces with their metadata.
 
 ```bash
-twm workspaces
+tenrakuctl workspaces
 ```
 
 **Examples:**
 ```bash
 # List all workspaces
-twm workspaces
+tenrakuctl workspaces
 
 # List workspaces in JSON format
-twm --format json workspaces
+tenrakuctl --format json workspaces
 ```
 
 **Output (table format):**
@@ -206,16 +206,16 @@ twm --format json workspaces
 List all monitors with their properties.
 
 ```bash
-twm monitors
+tenrakuctl monitors
 ```
 
 **Examples:**
 ```bash
 # List all monitors
-twm monitors
+tenrakuctl monitors
 
 # List monitors in JSON format
-twm --format json monitors
+tenrakuctl --format json monitors
 ```
 
 **Output (table format):**
@@ -233,16 +233,16 @@ twm --format json monitors
 Get current configuration information.
 
 ```bash
-twm config
+tenrakuctl config
 ```
 
 **Examples:**
 ```bash
 # Get config info
-twm config
+tenrakuctl config
 
 # Get config in JSON format
-twm --format json config
+tenrakuctl --format json config
 ```
 
 **Output (table format):**
@@ -260,16 +260,16 @@ Success
 Get version and build information.
 
 ```bash
-twm version
+tenrakuctl version
 ```
 
 **Examples:**
 ```bash
 # Get version info
-twm version
+tenrakuctl version
 
 # Get version in JSON format
-twm --format json version
+tenrakuctl --format json version
 ```
 
 **Output (table format):**
@@ -288,7 +288,7 @@ Success
 Close the active window or a specific window.
 
 ```bash
-twm close [OPTIONS]
+tenrakuctl close [OPTIONS]
 ```
 
 **Options:**
@@ -297,10 +297,10 @@ twm close [OPTIONS]
 **Examples:**
 ```bash
 # Close active window
-twm close
+tenrakuctl close
 
 # Close specific window
-twm close --window 12345
+tenrakuctl close --window 12345
 ```
 
 #### focus
@@ -308,7 +308,7 @@ twm close --window 12345
 Set focus to a specific window.
 
 ```bash
-twm focus <HWND>
+tenrakuctl focus <HWND>
 ```
 
 **Arguments:**
@@ -317,7 +317,7 @@ twm focus <HWND>
 **Examples:**
 ```bash
 # Focus window with HWND 12345
-twm focus 12345
+tenrakuctl focus 12345
 ```
 
 #### move
@@ -325,7 +325,7 @@ twm focus 12345
 Move a window to a different workspace.
 
 ```bash
-twm move <HWND> <WORKSPACE>
+tenrakuctl move <HWND> <WORKSPACE>
 ```
 
 **Arguments:**
@@ -335,7 +335,7 @@ twm move <HWND> <WORKSPACE>
 **Examples:**
 ```bash
 # Move window 12345 to workspace 2
-twm move 12345 2
+tenrakuctl move 12345 2
 ```
 
 #### toggle-float
@@ -343,7 +343,7 @@ twm move 12345 2
 Toggle floating state for the active window or a specific window.
 
 ```bash
-twm toggle-float [OPTIONS]
+tenrakuctl toggle-float [OPTIONS]
 ```
 
 **Options:**
@@ -352,10 +352,10 @@ twm toggle-float [OPTIONS]
 **Examples:**
 ```bash
 # Toggle floating for active window
-twm toggle-float
+tenrakuctl toggle-float
 
 # Toggle floating for specific window
-twm toggle-float --window 12345
+tenrakuctl toggle-float --window 12345
 ```
 
 #### toggle-fullscreen
@@ -363,7 +363,7 @@ twm toggle-float --window 12345
 Toggle fullscreen state for the active window or a specific window.
 
 ```bash
-twm toggle-fullscreen [OPTIONS]
+tenrakuctl toggle-fullscreen [OPTIONS]
 ```
 
 **Options:**
@@ -372,10 +372,10 @@ twm toggle-fullscreen [OPTIONS]
 **Examples:**
 ```bash
 # Toggle fullscreen for active window
-twm toggle-fullscreen
+tenrakuctl toggle-fullscreen
 
 # Toggle fullscreen for specific window
-twm toggle-fullscreen --window 12345
+tenrakuctl toggle-fullscreen --window 12345
 ```
 
 ### Workspace Commands
@@ -385,7 +385,7 @@ twm toggle-fullscreen --window 12345
 Switch to a different workspace.
 
 ```bash
-twm workspace <ID>
+tenrakuctl workspace <ID>
 ```
 
 **Arguments:**
@@ -394,7 +394,7 @@ twm workspace <ID>
 **Examples:**
 ```bash
 # Switch to workspace 3
-twm workspace 3
+tenrakuctl workspace 3
 ```
 
 #### create-workspace
@@ -402,7 +402,7 @@ twm workspace 3
 Create a new workspace.
 
 ```bash
-twm create-workspace <NAME> [OPTIONS]
+tenrakuctl create-workspace <NAME> [OPTIONS]
 ```
 
 **Arguments:**
@@ -414,10 +414,10 @@ twm create-workspace <NAME> [OPTIONS]
 **Examples:**
 ```bash
 # Create workspace on default monitor
-twm create-workspace "Development"
+tenrakuctl create-workspace "Development"
 
 # Create workspace on monitor 1
-twm create-workspace "Development" --monitor 1
+tenrakuctl create-workspace "Development" --monitor 1
 ```
 
 #### delete-workspace
@@ -425,7 +425,7 @@ twm create-workspace "Development" --monitor 1
 Delete a workspace.
 
 ```bash
-twm delete-workspace <ID>
+tenrakuctl delete-workspace <ID>
 ```
 
 **Arguments:**
@@ -434,7 +434,7 @@ twm delete-workspace <ID>
 **Examples:**
 ```bash
 # Delete workspace 5
-twm delete-workspace 5
+tenrakuctl delete-workspace 5
 ```
 
 #### rename-workspace
@@ -442,7 +442,7 @@ twm delete-workspace 5
 Rename a workspace.
 
 ```bash
-twm rename-workspace <ID> <NAME>
+tenrakuctl rename-workspace <ID> <NAME>
 ```
 
 **Arguments:**
@@ -452,7 +452,7 @@ twm rename-workspace <ID> <NAME>
 **Examples:**
 ```bash
 # Rename workspace 1 to "Main"
-twm rename-workspace 1 "Main"
+tenrakuctl rename-workspace 1 "Main"
 ```
 
 ### Layout Commands
@@ -462,7 +462,7 @@ twm rename-workspace 1 "Main"
 Set the tiling layout.
 
 ```bash
-twm layout <NAME>
+tenrakuctl layout <NAME>
 ```
 
 **Arguments:**
@@ -471,10 +471,10 @@ twm layout <NAME>
 **Examples:**
 ```bash
 # Set dwindle layout
-twm layout dwindle
+tenrakuctl layout dwindle
 
 # Set master layout
-twm layout master
+tenrakuctl layout master
 ```
 
 #### exec
@@ -482,7 +482,7 @@ twm layout master
 Execute layout-specific commands.
 
 ```bash
-twm exec <SUBCOMMAND>
+tenrakuctl exec <SUBCOMMAND>
 ```
 
 **Subcommands:**
@@ -492,7 +492,7 @@ twm exec <SUBCOMMAND>
 Adjust the master area size.
 
 ```bash
-twm exec master-factor <DELTA>
+tenrakuctl exec master-factor <DELTA>
 ```
 
 **Arguments:**
@@ -501,10 +501,10 @@ twm exec master-factor <DELTA>
 **Examples:**
 ```bash
 # Increase master size by 5%
-twm exec master-factor 0.05
+tenrakuctl exec master-factor 0.05
 
 # Decrease master size by 5%
-twm exec master-factor -0.05
+tenrakuctl exec master-factor -0.05
 ```
 
 ##### increase-master
@@ -512,12 +512,12 @@ twm exec master-factor -0.05
 Increase the number of windows in the master area.
 
 ```bash
-twm exec increase-master
+tenrakuctl exec increase-master
 ```
 
 **Examples:**
 ```bash
-twm exec increase-master
+tenrakuctl exec increase-master
 ```
 
 ##### decrease-master
@@ -525,12 +525,12 @@ twm exec increase-master
 Decrease the number of windows in the master area.
 
 ```bash
-twm exec decrease-master
+tenrakuctl exec decrease-master
 ```
 
 **Examples:**
 ```bash
-twm exec decrease-master
+tenrakuctl exec decrease-master
 ```
 
 ### System Commands
@@ -540,13 +540,13 @@ twm exec decrease-master
 Reload the configuration file.
 
 ```bash
-twm reload
+tenrakuctl reload
 ```
 
 **Examples:**
 ```bash
 # Reload configuration
-twm reload
+tenrakuctl reload
 ```
 
 #### listen
@@ -554,7 +554,7 @@ twm reload
 Subscribe to events and listen for real-time updates.
 
 ```bash
-twm listen [OPTIONS]
+tenrakuctl listen [OPTIONS]
 ```
 
 **Options:**
@@ -576,13 +576,13 @@ twm listen [OPTIONS]
 **Examples:**
 ```bash
 # Listen to window events
-twm listen --events window_created,window_closed
+tenrakuctl listen --events window_created,window_closed
 
 # Listen to workspace events
-twm listen --events workspace_changed
+tenrakuctl listen --events workspace_changed
 
 # Listen to all events (JSON format)
-twm --format json listen --events window_created,workspace_changed,config_reloaded
+tenrakuctl --format json listen --events window_created,workspace_changed,config_reloaded
 ```
 
 **Output:**
@@ -596,13 +596,13 @@ Event workspace_changed: {"from":1,"to":2}
 Send a ping to the server (health check).
 
 ```bash
-twm ping
+tenrakuctl ping
 ```
 
 **Examples:**
 ```bash
 # Ping the server
-twm ping
+tenrakuctl ping
 ```
 
 **Output:**
@@ -619,7 +619,7 @@ The CLI supports three output formats, controlled by the `--format` option.
 Human-readable table format with borders and colors.
 
 ```bash
-twm workspaces
+tenrakuctl workspaces
 ```
 
 ### JSON Format
@@ -627,7 +627,7 @@ twm workspaces
 Machine-readable JSON format, ideal for scripting.
 
 ```bash
-twm --format json workspaces
+tenrakuctl --format json workspaces
 ```
 
 Example output:
@@ -652,7 +652,7 @@ Example output:
 Minimal output for simple scripts and piping.
 
 ```bash
-twm --format compact workspaces
+tenrakuctl --format compact workspaces
 ```
 
 Example output:
@@ -666,104 +666,104 @@ Example output:
 
 ```bash
 # Check if window manager is running
-twm ping
+tenrakuctl ping
 
 # Get version information
-twm version
+tenrakuctl version
 
 # List all workspaces
-twm workspaces
+tenrakuctl workspaces
 
 # Switch to workspace 3
-twm workspace 3
+tenrakuctl workspace 3
 
 # Get active window
-twm active-window
+tenrakuctl active-window
 
 # Close active window
-twm close
+tenrakuctl close
 ```
 
 ### Window Management
 
 ```bash
 # List all windows
-twm windows
+tenrakuctl windows
 
 # List windows in workspace 2
-twm windows --workspace 2
+tenrakuctl windows --workspace 2
 
 # Get active window information
-twm active-window
+tenrakuctl active-window
 
 # Close specific window
-twm close --window 12345
+tenrakuctl close --window 12345
 
 # Focus a window
-twm focus 12345
+tenrakuctl focus 12345
 
 # Move window to workspace 3
-twm move 12345 3
+tenrakuctl move 12345 3
 
 # Toggle floating for active window
-twm toggle-float
+tenrakuctl toggle-float
 
 # Toggle fullscreen for active window
-twm toggle-fullscreen
+tenrakuctl toggle-fullscreen
 ```
 
 ### Workspace Management
 
 ```bash
 # List all workspaces
-twm workspaces
+tenrakuctl workspaces
 
 # Switch to workspace 2
-twm workspace 2
+tenrakuctl workspace 2
 
 # Create a new workspace
-twm create-workspace "Development"
+tenrakuctl create-workspace "Development"
 
 # Rename workspace 1
-twm rename-workspace 1 "Main"
+tenrakuctl rename-workspace 1 "Main"
 
 # Delete workspace 5
-twm delete-workspace 5
+tenrakuctl delete-workspace 5
 ```
 
 ### Layout Management
 
 ```bash
 # Get current layout
-twm config | grep current_layout
+tenrakuctl config | grep current_layout
 
 # Switch to dwindle layout
-twm layout dwindle
+tenrakuctl layout dwindle
 
 # Switch to master layout
-twm layout master
+tenrakuctl layout master
 
 # Adjust master area size
-twm exec master-factor 0.05
+tenrakuctl exec master-factor 0.05
 
 # Increase master count
-twm exec increase-master
+tenrakuctl exec increase-master
 
 # Decrease master count
-twm exec decrease-master
+tenrakuctl exec decrease-master
 ```
 
 ### Event Monitoring
 
 ```bash
 # Monitor window events
-twm listen --events window_created,window_closed,window_focused
+tenrakuctl listen --events window_created,window_closed,window_focused
 
 # Monitor workspace changes
-twm listen --events workspace_changed
+tenrakuctl listen --events workspace_changed
 
 # Monitor all events in JSON format
-twm --format json listen --events window_created,workspace_changed,layout_changed
+tenrakuctl --format json listen --events window_created,workspace_changed,layout_changed
 ```
 
 ## Scripting
@@ -772,7 +772,7 @@ twm --format json listen --events window_created,workspace_changed,layout_change
 
 ```powershell
 # Get workspace data
-$workspaces = (twm --format json workspaces | ConvertFrom-Json).data
+$workspaces = (tenrakuctl --format json workspaces | ConvertFrom-Json).data
 
 # Find active workspace
 $active = $workspaces | Where-Object { $_.active -eq $true }
@@ -780,10 +780,10 @@ Write-Host "Active workspace: $($active.name)"
 
 # Switch to next workspace
 $nextId = $active.id + 1
-twm workspace $nextId
+tenrakuctl workspace $nextId
 
 # Monitor events and take action
-twm listen --events workspace_changed | ForEach-Object {
+tenrakuctl listen --events workspace_changed | ForEach-Object {
     $event = $_ | ConvertFrom-Json
     Write-Host "Switched from workspace $($event.data.from) to $($event.data.to)"
 }
@@ -827,13 +827,13 @@ for line in proc.stdout:
 
 ```bash
 # Get active window
-ACTIVE=$(twm --format json active-window | jq -r '.data.hwnd')
+ACTIVE=$(tenrakuctl --format json active-window | jq -r '.data.hwnd')
 
 # Move to workspace 2
-twm move "$ACTIVE" 2
+tenrakuctl move "$ACTIVE" 2
 
 # Monitor events
-twm listen --events window_created | while read -r line; do
+tenrakuctl listen --events window_created | while read -r line; do
     echo "New window: $line"
 done
 ```
@@ -843,7 +843,7 @@ done
 ### CLI Tool Not Found
 
 ```bash
-# Check if twm is in PATH
+# Check if tenrakuctl is in PATH
 where twm
 
 # If not, add it to PATH or use full path
@@ -854,23 +854,23 @@ C:\path\to\twm.exe --help
 
 ```bash
 # Verify window manager is running
-twm ping
+tenrakuctl ping
 
 # If it fails, check if the window manager is running
-# Check the named pipe exists: \\.\pipe\tiling-wm
+# Check the named pipe exists: \\\\.\\pipe\\tenraku
 
 # If using custom pipe, specify it:
-twm --pipe \\.\pipe\custom-name ping
+tenrakuctl --pipe \\.\pipe\custom-name ping
 ```
 
 ### Invalid Output
 
 ```bash
 # Try JSON format for debugging
-twm --format json <command>
+tenrakuctl --format json <command>
 
 # Check for errors in stderr
-twm <command> 2>&1
+tenrakuctl <command> 2>&1
 ```
 
 ### Permission Issues
@@ -887,7 +887,7 @@ The CLI is Windows-only. On other platforms:
 
 ```bash
 # On Linux/macOS
-twm --help
+tenrakuctl --help
 # Output: Error: This CLI tool only works on Windows.
 ```
 
@@ -898,7 +898,7 @@ If commands hang or timeout:
 1. **Check server responsiveness**
    ```bash
    # Test basic connectivity
-   twm ping
+   tenrakuctl ping
    ```
 
 2. **Verify window manager is not overloaded**
@@ -909,8 +909,8 @@ If commands hang or timeout:
 3. **Try simpler commands first**
    ```bash
    # Start with quick queries
-   twm version
-   twm workspaces
+   tenrakuctl version
+   tenrakuctl workspaces
    ```
 
 4. **Check for blocking operations**
@@ -924,13 +924,13 @@ If event listening doesn't work:
 1. **Verify event names are correct**
    ```bash
    # Event names are case-sensitive and use underscores
-   twm listen --events window_created,workspace_changed
+   tenrakuctl listen --events window_created,workspace_changed
    ```
 
 2. **Test with single event first**
    ```bash
    # Start with one event to isolate issues
-   twm listen --events window_created
+   tenrakuctl listen --events window_created
    ```
 
 3. **Check if events are actually firing**
@@ -950,7 +950,7 @@ When using JSON output in scripts:
 ```powershell
 # Ensure proper error handling
 try {
-    $result = twm --format json workspaces | ConvertFrom-Json
+    $result = tenrakuctl --format json workspaces | ConvertFrom-Json
     if ($result.type -eq "success") {
         # Process data
     }
@@ -1011,17 +1011,17 @@ If `twm` command is not found after installation:
 
 ```bash
 # Get active window and move it
-$hwnd = (twm --format json active-window | ConvertFrom-Json).data.hwnd
-twm move $hwnd 2
+$hwnd = (tenrakuctl --format json active-window | ConvertFrom-Json).data.hwnd
+tenrakuctl move $hwnd 2
 ```
 
 ### Conditional Logic
 
 ```bash
 # Only switch if workspace has no windows
-$ws = (twm --format json workspaces | ConvertFrom-Json).data | Where-Object { $_.id -eq 3 }
+$ws = (tenrakuctl --format json workspaces | ConvertFrom-Json).data | Where-Object { $_.id -eq 3 }
 if ($ws.window_count -eq 0) {
-    twm workspace 3
+    tenrakuctl workspace 3
 }
 ```
 
@@ -1029,10 +1029,10 @@ if ($ws.window_count -eq 0) {
 
 ```bash
 # Use with jq
-twm --format json workspaces | jq '.data[] | select(.active == true)'
+tenrakuctl --format json workspaces | jq '.data[] | select(.active == true)'
 
 # Use with fzf for interactive selection
-twm --format json windows | jq -r '.data[] | "\(.hwnd): \(.title)"' | fzf
+tenrakuctl --format json windows | jq -r '.data[] | "\(.hwnd): \(.title)"' | fzf
 ```
 
 ## See Also

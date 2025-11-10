@@ -6,8 +6,8 @@
 //! Run with: cargo run -p tiling-wm-core --example test_ipc_server
 
 use std::sync::Arc;
-use tiling_wm_core::ipc::server::IpcServer;
-use tiling_wm_core::ipc::{EventBroadcaster, Request, Response};
+use tenraku_core::ipc::server::IpcServer;
+use tenraku_core::ipc::{EventBroadcaster, Request, Response};
 
 #[tokio::main]
 async fn main() {
@@ -28,7 +28,7 @@ async fn test_server_creation() {
     let broadcaster = Arc::new(EventBroadcaster::new());
     let server = IpcServer::new(broadcaster);
     
-    assert!(server.pipe_name().contains("tiling-wm"));
+    assert!(server.pipe_name().contains(\"tenraku\"));
     assert_eq!(server.get_connection_count().await, 0);
     assert!(!server.is_running().await);
     

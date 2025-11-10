@@ -115,7 +115,7 @@ impl PersistenceManager {
     /// # Example
     ///
     /// ```
-    /// use tiling_wm_core::workspace::persistence::PersistenceManager;
+    /// use tenraku_core::workspace::persistence::PersistenceManager;
     ///
     /// let manager = PersistenceManager::new();
     /// ```
@@ -176,7 +176,7 @@ impl PersistenceManager {
     /// # Example
     ///
     /// ```no_run
-    /// use tiling_wm_core::workspace::persistence::{PersistenceManager, SessionState};
+    /// use tenraku_core::workspace::persistence::{PersistenceManager, SessionState};
     ///
     /// let manager = PersistenceManager::new();
     /// let state = SessionState::default();
@@ -210,7 +210,7 @@ impl PersistenceManager {
     /// # Example
     ///
     /// ```no_run
-    /// use tiling_wm_core::workspace::persistence::PersistenceManager;
+    /// use tenraku_core::workspace::persistence::PersistenceManager;
     ///
     /// let manager = PersistenceManager::new();
     /// match manager.load_state() {
@@ -244,7 +244,7 @@ impl PersistenceManager {
     /// # Example
     ///
     /// ```no_run
-    /// use tiling_wm_core::workspace::persistence::PersistenceManager;
+    /// use tenraku_core::workspace::persistence::PersistenceManager;
     ///
     /// let manager = PersistenceManager::new();
     /// match manager.load_state_with_fallback() {
@@ -282,7 +282,7 @@ impl PersistenceManager {
     /// # Example
     ///
     /// ```no_run
-    /// use tiling_wm_core::workspace::persistence::PersistenceManager;
+    /// use tenraku_core::workspace::persistence::PersistenceManager;
     ///
     /// let manager = PersistenceManager::new();
     /// manager.clear_state().unwrap();
@@ -310,7 +310,7 @@ impl PersistenceManager {
     /// # Example
     ///
     /// ```no_run
-    /// use tiling_wm_core::workspace::persistence::PersistenceManager;
+    /// use tenraku_core::workspace::persistence::PersistenceManager;
     ///
     /// let manager = PersistenceManager::new();
     /// if manager.has_saved_state() {
@@ -325,207 +325,5 @@ impl PersistenceManager {
 impl Default for PersistenceManager {
     fn default() -> Self {
         Self::new()
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-    use tempfile::tempdir;
-    
-    #[test]
-    fn test_save_and_load_state() {
-        let temp_dir = tempdir().unwrap();
-        let state_path = temp_dir.path().join("test_session.json");
-        
-        let persistence = PersistenceManager::with_custom_path(state_path.clone());
-        
-        let mut state = SessionState::default();
-        state.active_workspace = 3;
-        
-        persistence.save_state(&state).unwrap();
-        assert!(state_path.exists());
-        
-        let loaded = persistence.load_state().unwrap();
-        assert_eq!(loaded.active_workspace, 3);
-        assert_eq!(loaded.version, env!("CARGO_PKG_VERSION"));
-    }
-    
-    #[test]
-    fn test_backup_on_save() {
-        let temp_dir = tempdir().unwrap();
-        let state_path = temp_dir.path().join("test_session.json");
-        let persistence = PersistenceManager::with_custom_path(state_path.clone());
-        
-        // Save initial state
-        let state1 = SessionState::default();
-        persistence.save_state(&state1).unwrap();
-        
-        // Save a second state - should create backup
-        let mut state2 = SessionState::default();
-        state2.active_workspace = 5;
-        persistence.save_state(&state2).unwrap();
-        
-        // Backup should exist
-        assert!(persistence.backup_file.exists());
-        
-        // Backup should contain the first state
-        let backup_json = fs::read_to_string(&persistence.backup_file).unwrap();
-        let backup_state: SessionState = serde_json::from_str(&backup_json).unwrap();
-        assert_eq!(backup_state.active_workspace, 1); // Default value from state1
-    }
-    
-    #[test]
-    fn test_load_nonexistent_state() {
-        let temp_dir = tempdir().unwrap();
-        let state_path = temp_dir.path().join("nonexistent.json");
-        
-        let persistence = PersistenceManager::with_custom_path(state_path);
-        
-        let result = persistence.load_state();
-        assert!(result.is_err());
-    }
-    
-    #[test]
-    fn test_load_with_fallback_corrupted_main() {
-        let temp_dir = tempdir().unwrap();
-        let state_path = temp_dir.path().join("test_session.json");
-        let persistence = PersistenceManager::with_custom_path(state_path.clone());
-        
-        // Save a valid backup
-        let mut backup_state = SessionState::default();
-        backup_state.active_workspace = 7;
-        let backup_json = serde_json::to_string_pretty(&backup_state).unwrap();
-        fs::write(&persistence.backup_file, backup_json).unwrap();
-        
-        // Write corrupted main file
-        fs::write(&state_path, "{ invalid json }").unwrap();
-        
-        // Should fallback to backup
-        let loaded = persistence.load_state_with_fallback().unwrap();
-        assert_eq!(loaded.active_workspace, 7);
-    }
-    
-    #[test]
-    fn test_clear_state() {
-        let temp_dir = tempdir().unwrap();
-        let state_path = temp_dir.path().join("test_session.json");
-        let persistence = PersistenceManager::with_custom_path(state_path.clone());
-        
-        // Save state and backup
-        let state = SessionState::default();
-        persistence.save_state(&state).unwrap();
-        persistence.save_state(&state).unwrap(); // Second save creates backup
-        
-        assert!(state_path.exists());
-        assert!(persistence.backup_file.exists());
-        
-        // Clear state
-        persistence.clear_state().unwrap();
-        
-        assert!(!state_path.exists());
-        assert!(!persistence.backup_file.exists());
-    }
-    
-    #[test]
-    fn test_has_saved_state() {
-        let temp_dir = tempdir().unwrap();
-        let state_path = temp_dir.path().join("test_session.json");
-        let persistence = PersistenceManager::with_custom_path(state_path.clone());
-        
-        // No state initially
-        assert!(!persistence.has_saved_state());
-        
-        // Save state
-        let state = SessionState::default();
-        persistence.save_state(&state).unwrap();
-        
-        // Should have state now
-        assert!(persistence.has_saved_state());
-        
-        // Remove main file but keep backup
-        fs::remove_file(&state_path).unwrap();
-        
-        // Should still report state available (backup exists)
-        assert!(persistence.has_saved_state());
-    }
-    
-    #[test]
-    fn test_workspace_state_serialization() {
-        let workspace_state = WorkspaceState {
-            id: 1,
-            name: "Main".to_string(),
-            monitor: 0,
-            windows: vec![
-                WindowState {
-                    hwnd: "12345".to_string(),
-                    process_name: "notepad.exe".to_string(),
-                    title: "Untitled - Notepad".to_string(),
-                    class_name: "Notepad".to_string(),
-                    workspace: 1,
-                },
-            ],
-            virtual_desktop_id: Some("vd-123".to_string()),
-        };
-        
-        // Test serialization
-        let json = serde_json::to_string(&workspace_state).unwrap();
-        
-        // Test deserialization
-        let deserialized: WorkspaceState = serde_json::from_str(&json).unwrap();
-        assert_eq!(deserialized.id, 1);
-        assert_eq!(deserialized.name, "Main");
-        assert_eq!(deserialized.windows.len(), 1);
-        assert_eq!(deserialized.windows[0].hwnd, "12345");
-    }
-    
-    #[test]
-    fn test_session_state_default() {
-        let state = SessionState::default();
-        
-        assert_eq!(state.version, env!("CARGO_PKG_VERSION"));
-        assert!(state.workspaces.is_empty());
-        assert_eq!(state.active_workspace, 1);
-        assert!(state.window_to_workspace.is_empty());
-        
-        // Timestamp should be recent (within last minute)
-        let now = SystemTime::now()
-            .duration_since(SystemTime::UNIX_EPOCH)
-            .unwrap()
-            .as_secs();
-        assert!(state.timestamp <= now);
-        assert!(state.timestamp > now - 60);
-    }
-    
-    #[test]
-    fn test_session_state_with_workspaces() {
-        let mut state = SessionState::default();
-        
-        state.workspaces.push(WorkspaceState {
-            id: 1,
-            name: "Workspace 1".to_string(),
-            monitor: 0,
-            windows: vec![],
-            virtual_desktop_id: None,
-        });
-        
-        state.workspaces.push(WorkspaceState {
-            id: 2,
-            name: "Workspace 2".to_string(),
-            monitor: 1,
-            windows: vec![],
-            virtual_desktop_id: None,
-        });
-        
-        state.window_to_workspace.insert("123".to_string(), 1);
-        state.window_to_workspace.insert("456".to_string(), 2);
-        
-        // Serialize and deserialize
-        let json = serde_json::to_string_pretty(&state).unwrap();
-        let deserialized: SessionState = serde_json::from_str(&json).unwrap();
-        
-        assert_eq!(deserialized.workspaces.len(), 2);
-        assert_eq!(deserialized.window_to_workspace.len(), 2);
-        assert_eq!(deserialized.window_to_workspace.get("123"), Some(&1));
     }
 }

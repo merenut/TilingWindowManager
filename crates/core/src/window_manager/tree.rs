@@ -8,7 +8,7 @@
 //! # Example
 //!
 //! ```no_run
-//! use tiling_wm_core::window_manager::{TreeNode, Rect, Split};
+//! use tenraku_core::window_manager::{TreeNode, Rect, Split};
 //! use windows::Win32::Foundation::HWND;
 //!
 //! // Create a root node with a window
@@ -53,7 +53,7 @@ impl Rect {
     /// # Example
     ///
     /// ```
-    /// use tiling_wm_core::window_manager::Rect;
+    /// use tenraku_core::window_manager::Rect;
     ///
     /// let rect = Rect::new(0, 0, 1920, 1080);
     /// assert_eq!(rect.width, 1920);
@@ -120,7 +120,7 @@ impl Rect {
     /// # Example
     ///
     /// ```
-    /// use tiling_wm_core::window_manager::Rect;
+    /// use tenraku_core::window_manager::Rect;
     ///
     /// let rect = Rect::new(0, 0, 100, 100);
     /// let (left, right) = rect.split_horizontal(0.5);
@@ -135,6 +135,10 @@ impl Rect {
             self.y,
             self.width - split_width,
             self.height,
+        );
+        tracing::debug!(
+            "split_horizontal: total_width={}, ratio={}, split_width={}, left_width={}, right_width={}",
+            self.width, ratio, split_width, left.width, right.width
         );
         (left, right)
     }
@@ -152,7 +156,7 @@ impl Rect {
     /// # Example
     ///
     /// ```
-    /// use tiling_wm_core::window_manager::Rect;
+    /// use tenraku_core::window_manager::Rect;
     ///
     /// let rect = Rect::new(0, 0, 100, 100);
     /// let (top, bottom) = rect.split_vertical(0.5);
@@ -168,6 +172,10 @@ impl Rect {
             self.width,
             self.height - split_height,
         );
+        tracing::debug!(
+            "split_vertical: total_height={}, ratio={}, split_height={}, top_height={}, bottom_height={}",
+            self.height, ratio, split_height, top.height, bottom.height
+        );
         (top, bottom)
     }
 
@@ -181,13 +189,12 @@ impl Rect {
     /// # Returns
     ///
     /// A new rectangle with gaps applied.
-    pub fn apply_gaps(&self, gaps_in: i32, gaps_out: i32) -> Rect {
-        Rect::new(
-            self.x + gaps_out,
-            self.y + gaps_out,
-            self.width - 2 * gaps_out - gaps_in,
-            self.height - 2 * gaps_out - gaps_in,
-        )
+    pub fn apply_gaps(&self, _gaps_in: i32, gaps_out: i32) -> Rect {
+        // Apply outer gaps only - gaps_in is handled during window positioning
+        let new_width = (self.width - 2 * gaps_out).max(1);
+        let new_height = (self.height - 2 * gaps_out).max(1);
+
+        Rect::new(self.x + gaps_out, self.y + gaps_out, new_width, new_height)
     }
 
     /// Shrink the rectangle by a specified amount on all sides.
@@ -249,7 +256,7 @@ impl Split {
     /// # Example
     ///
     /// ```
-    /// use tiling_wm_core::window_manager::Split;
+    /// use tenraku_core::window_manager::Split;
     ///
     /// let split = Split::Horizontal;
     /// assert_eq!(split.opposite(), Split::Vertical);
@@ -303,7 +310,7 @@ impl TreeNode {
     /// # Example
     ///
     /// ```no_run
-    /// use tiling_wm_core::window_manager::{TreeNode, Rect};
+    /// use tenraku_core::window_manager::{TreeNode, Rect};
     /// use windows::Win32::Foundation::HWND;
     ///
     /// let rect = Rect::new(0, 0, 1920, 1080);
@@ -435,7 +442,7 @@ impl TreeNode {
     /// # Example
     ///
     /// ```no_run
-    /// use tiling_wm_core::window_manager::{TreeNode, Rect, Split};
+    /// use tenraku_core::window_manager::{TreeNode, Rect, Split};
     /// use windows::Win32::Foundation::HWND;
     ///
     /// let rect = Rect::new(0, 0, 1920, 1080);
@@ -468,6 +475,53 @@ impl TreeNode {
                 let new_tree =
                     TreeNode::new_container(current_split, *left, new_right, rect, ratio);
                 // Recalculate all rectangles in the tree to ensure proper layout
+                new_tree.with_rect(rect)
+            }
+        }
+    }
+
+    /// Insert a new window with dynamic split direction calculation.
+    ///
+    /// This variant allows the split direction to be computed at each level
+    /// based on the rectangle dimensions, enabling "smart split" behavior.
+    ///
+    /// # Arguments
+    ///
+    /// * `hwnd` - The window handle to insert
+    /// * `split_fn` - Function that calculates split direction based on a rectangle
+    ///
+    /// # Returns
+    ///
+    /// The modified tree with the new window inserted.
+    pub fn insert_with_fn<F>(self, hwnd: HWND, split_fn: &F) -> Self
+    where
+        F: Fn(&Rect) -> Split,
+    {
+        let rect = self.rect;
+        match self.node_type {
+            NodeType::Leaf { hwnd: old_hwnd } => {
+                // Calculate split direction for this specific rectangle
+                let split = split_fn(&rect);
+                let (left_rect, right_rect) = match split {
+                    Split::Horizontal => rect.split_horizontal(0.5),
+                    Split::Vertical => rect.split_vertical(0.5),
+                };
+
+                let left = TreeNode::new_leaf(old_hwnd, left_rect);
+                let right = TreeNode::new_leaf(hwnd, right_rect);
+
+                TreeNode::new_container(split, left, right, rect, 0.5)
+            }
+            NodeType::Container {
+                split: current_split,
+                left,
+                right,
+                ratio,
+            } => {
+                // Recursively insert with the split function
+                let new_right = right.insert_with_fn(hwnd, split_fn);
+                let new_tree =
+                    TreeNode::new_container(current_split, *left, new_right, rect, ratio);
                 new_tree.with_rect(rect)
             }
         }
@@ -599,7 +653,7 @@ impl TreeNode {
     /// # Example
     ///
     /// ```no_run
-    /// use tiling_wm_core::window_manager::{TreeNode, Rect, Split};
+    /// use tenraku_core::window_manager::{TreeNode, Rect, Split};
     /// use windows::Win32::Foundation::HWND;
     ///
     /// let rect = Rect::new(0, 0, 1920, 1080);
@@ -646,36 +700,125 @@ impl TreeNode {
     ///
     /// This function is only available on Windows platforms.
     #[cfg(target_os = "windows")]
-    pub fn apply_layout(&self, gaps_in: i32, gaps_out: i32) -> anyhow::Result<()> {
-        use windows::Win32::UI::WindowsAndMessaging::{SetWindowPos, SWP_NOACTIVATE, SWP_NOZORDER};
+    pub fn apply_layout(&self, gaps_in: i32, _gaps_out: i32) -> anyhow::Result<()> {
+        use windows::Win32::UI::WindowsAndMessaging::{
+            BeginDeferWindowPos, EndDeferWindowPos,
+        };
 
-        for (hwnd, rect) in self.collect() {
-            // Apply gaps to the rectangle
-            // gaps_in creates space between windows (apply half gap on each side)
-            // gaps_out should already be baked into the tree's root rectangle
-            let half_gap = gaps_in / 2;
-            let final_rect = Rect::new(
-                rect.x + half_gap,
-                rect.y + half_gap,
-                rect.width - gaps_in,
-                rect.height - gaps_in,
-            );
+        let windows = self.collect();
+        tracing::debug!("Applying layout to {} windows", windows.len());
 
-            // Position and size the window
-            unsafe {
-                SetWindowPos(
-                    hwnd,
-                    None,
-                    final_rect.x,
-                    final_rect.y,
-                    final_rect.width,
-                    final_rect.height,
-                    SWP_NOZORDER | SWP_NOACTIVATE,
-                )?;
+        unsafe {
+            let hdwp = BeginDeferWindowPos(windows.len() as i32)?;
+            let mut hdwp_current = hdwp;
+
+            for (hwnd, rect) in windows {
+                let final_rect = self.apply_gaps_to_rect(rect, gaps_in);
+                let adjusted_rect = self.compensate_for_invisible_borders(hwnd, final_rect);
+
+                hdwp_current = self.defer_window_position(hdwp_current, hwnd, adjusted_rect)?;
             }
+
+            EndDeferWindowPos(hdwp_current)?;
         }
 
         Ok(())
+    }
+
+    fn apply_gaps_to_rect(&self, rect: Rect, gaps_in: i32) -> Rect {
+        let half_gap = gaps_in / 2;
+        let width = (rect.width - gaps_in).max(1);
+        let height = (rect.height - gaps_in).max(1);
+
+        Rect::new(rect.x + half_gap, rect.y + half_gap, width, height)
+    }
+
+    #[cfg(target_os = "windows")]
+    fn compensate_for_invisible_borders(&self, hwnd: HWND, rect: Rect) -> Rect {
+        use windows::Win32::Foundation::RECT;
+        use windows::Win32::Graphics::Dwm::{DwmGetWindowAttribute, DWMWA_EXTENDED_FRAME_BOUNDS};
+        use windows::Win32::UI::WindowsAndMessaging::GetWindowRect;
+
+        let (adjust_width, adjust_height) = unsafe {
+            let mut extended_frame = RECT::default();
+            let has_extended_frame = DwmGetWindowAttribute(
+                hwnd,
+                DWMWA_EXTENDED_FRAME_BOUNDS,
+                std::ptr::addr_of_mut!(extended_frame) as *mut _,
+                std::mem::size_of::<RECT>() as u32,
+            )
+            .is_ok();
+
+            if !has_extended_frame {
+                return rect;
+            }
+
+            let mut window_rect = RECT::default();
+            if GetWindowRect(hwnd, &mut window_rect).is_err() {
+                return rect;
+            }
+
+            let border_left = extended_frame.left - window_rect.left;
+            let border_top = extended_frame.top - window_rect.top;
+            let border_right = window_rect.right - extended_frame.right;
+            let border_bottom = window_rect.bottom - extended_frame.bottom;
+
+            tracing::debug!(
+                "Window {} has invisible borders: left={}, top={}, right={}, bottom={}",
+                hwnd.0,
+                border_left,
+                border_top,
+                border_right,
+                border_bottom
+            );
+
+            (border_left + border_right, border_top + border_bottom)
+        };
+
+        Rect::new(
+            rect.x,
+            rect.y,
+            rect.width + adjust_width,
+            rect.height + adjust_height,
+        )
+    }
+
+    #[cfg(target_os = "windows")]
+    unsafe fn defer_window_position(
+        &self,
+        hdwp: windows::Win32::UI::WindowsAndMessaging::HDWP,
+        hwnd: HWND,
+        rect: Rect,
+    ) -> anyhow::Result<windows::Win32::UI::WindowsAndMessaging::HDWP> {
+        use windows::Win32::UI::WindowsAndMessaging::{
+            DeferWindowPos, SWP_FRAMECHANGED, SWP_NOACTIVATE, SWP_NOZORDER,
+        };
+
+        tracing::debug!(
+            "Positioning window {} at x={}, y={}, width={}, height={}",
+            hwnd.0,
+            rect.x,
+            rect.y,
+            rect.width,
+            rect.height
+        );
+
+        match DeferWindowPos(
+            hdwp,
+            hwnd,
+            None,
+            rect.x,
+            rect.y,
+            rect.width,
+            rect.height,
+            SWP_NOZORDER | SWP_NOACTIVATE | SWP_FRAMECHANGED,
+        ) {
+            Ok(new_hdwp) => Ok(new_hdwp),
+            Err(e) => {
+                tracing::warn!("Failed to defer window position for {}: {}", hwnd.0, e);
+                Ok(hdwp) // Continue with previous handle
+            }
+        }
     }
 
     /// Apply the tree's window layout using Win32 API (non-Windows stub).

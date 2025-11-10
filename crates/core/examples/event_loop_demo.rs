@@ -28,7 +28,7 @@ fn main() -> anyhow::Result<()> {
     #[cfg(target_os = "windows")]
     {
         use std::time::Duration;
-        use tiling_wm_core::event_loop::EventLoop;
+        use tenraku_core::event_loop::EventLoop;
         println!("📋 Starting event loop...");
 
         let mut event_loop = EventLoop::new();

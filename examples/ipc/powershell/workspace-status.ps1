@@ -6,7 +6,7 @@ Write-Host "Workspace Status:" -ForegroundColor Cyan
 Write-Host ""
 
 try {
-    $result = & twm --format json workspaces 2>&1
+    $result = & tenrakuctl --format json workspaces 2>&1
     
     if ($LASTEXITCODE -ne 0) {
         Write-Host "Failed to get workspace information: $result" -ForegroundColor Red

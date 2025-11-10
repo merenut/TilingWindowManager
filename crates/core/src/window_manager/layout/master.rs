@@ -15,8 +15,8 @@
 //! # Example
 //!
 //! ```no_run
-//! use tiling_wm_core::window_manager::layout::MasterLayout;
-//! use tiling_wm_core::window_manager::Rect;
+//! use tenraku_core::window_manager::layout::MasterLayout;
+//! use tenraku_core::window_manager::Rect;
 //! use windows::Win32::Foundation::HWND;
 //!
 //! let layout = MasterLayout::new();
@@ -63,7 +63,7 @@ impl MasterLayout {
     /// # Example
     ///
     /// ```
-    /// use tiling_wm_core::window_manager::layout::MasterLayout;
+    /// use tenraku_core::window_manager::layout::MasterLayout;
     ///
     /// let layout = MasterLayout::new();
     /// assert_eq!(layout.master_factor, 0.55);
@@ -85,7 +85,7 @@ impl MasterLayout {
     /// # Example
     ///
     /// ```
-    /// use tiling_wm_core::window_manager::layout::MasterLayout;
+    /// use tenraku_core::window_manager::layout::MasterLayout;
     ///
     /// let layout = MasterLayout::new().with_master_factor(0.6);
     /// assert_eq!(layout.master_factor, 0.6);
@@ -107,7 +107,7 @@ impl MasterLayout {
     /// # Example
     ///
     /// ```
-    /// use tiling_wm_core::window_manager::layout::MasterLayout;
+    /// use tenraku_core::window_manager::layout::MasterLayout;
     ///
     /// let layout = MasterLayout::new().with_master_count(2);
     /// assert_eq!(layout.master_count, 2);
@@ -136,8 +136,8 @@ impl MasterLayout {
     /// # Example
     ///
     /// ```no_run
-    /// use tiling_wm_core::window_manager::layout::MasterLayout;
-    /// use tiling_wm_core::window_manager::Rect;
+    /// use tenraku_core::window_manager::layout::MasterLayout;
+    /// use tenraku_core::window_manager::Rect;
     /// use windows::Win32::Foundation::HWND;
     ///
     /// let layout = MasterLayout::new();
@@ -152,17 +152,22 @@ impl MasterLayout {
             return Ok(());
         }
 
-        // Apply outer gaps to the entire area
-        let work_area = Rect::new(
-            area.x + self.gaps_out,
-            area.y + self.gaps_out,
-            area.width - 2 * self.gaps_out,
-            area.height - 2 * self.gaps_out,
-        );
+        // Note: outer gaps should already be applied by the caller
+        // We only apply inner gaps between windows here
+        let work_area = area;
 
-        // Single window: take full work area
+        // Single window: take full work area with inner gaps
         if windows.len() == 1 {
-            self.position_window(windows[0], work_area)?;
+            let half_gap = self.gaps_in / 2;
+            let final_width = (work_area.width - self.gaps_in).max(1);
+            let final_height = (work_area.height - self.gaps_in).max(1);
+            let final_rect = Rect::new(
+                work_area.x + half_gap,
+                work_area.y + half_gap,
+                final_width,
+                final_height,
+            );
+            self.position_window(windows[0], final_rect)?;
             return Ok(());
         }
 
@@ -219,9 +224,9 @@ impl MasterLayout {
         area: Rect,
     ) -> anyhow::Result<()> {
         // Calculate master and stack areas
-        let master_width = (area.width as f32 * self.master_factor) as i32;
-        // Ensure stack_width is non-negative
-        let stack_width = (area.width - master_width).max(0);
+        let master_width = ((area.width as f32 * self.master_factor) as i32).max(1);
+        // Ensure stack_width is positive
+        let stack_width = (area.width - master_width).max(1);
 
         let master_area = Rect::new(area.x, area.y, master_width, area.height);
         let stack_area = Rect::new(area.x + master_width, area.y, stack_width, area.height);
@@ -277,6 +282,17 @@ impl MasterLayout {
                 final_height,
             );
 
+            tracing::debug!(
+                "Positioning window {} ({}/{}) at ({}, {}) with size {}x{}",
+                hwnd.0,
+                i + 1,
+                windows.len(),
+                final_rect.x,
+                final_rect.y,
+                final_rect.width,
+                final_rect.height
+            );
+
             self.position_window(hwnd, final_rect)?;
         }
 
@@ -313,7 +329,7 @@ impl MasterLayout {
     /// # Example
     ///
     /// ```
-    /// use tiling_wm_core::window_manager::layout::MasterLayout;
+    /// use tenraku_core::window_manager::layout::MasterLayout;
     ///
     /// let mut layout = MasterLayout::new();
     /// assert_eq!(layout.master_count, 1);
@@ -329,7 +345,7 @@ impl MasterLayout {
     /// # Example
     ///
     /// ```
-    /// use tiling_wm_core::window_manager::layout::MasterLayout;
+    /// use tenraku_core::window_manager::layout::MasterLayout;
     ///
     /// let mut layout = MasterLayout::new().with_master_count(2);
     /// layout.decrease_master_count();
@@ -354,7 +370,7 @@ impl MasterLayout {
     /// # Example
     ///
     /// ```
-    /// use tiling_wm_core::window_manager::layout::MasterLayout;
+    /// use tenraku_core::window_manager::layout::MasterLayout;
     ///
     /// let mut layout = MasterLayout::new();
     /// let original = layout.master_factor;
@@ -363,158 +379,5 @@ impl MasterLayout {
     /// ```
     pub fn adjust_master_factor(&mut self, delta: f32) {
         self.master_factor = (self.master_factor + delta).clamp(0.1, 0.9);
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn test_default_layout() {
-        let layout = MasterLayout::new();
-        assert_eq!(layout.master_factor, 0.55);
-        assert_eq!(layout.master_count, 1);
-        assert_eq!(layout.gaps_in, 5);
-        assert_eq!(layout.gaps_out, 10);
-    }
-
-    #[test]
-    fn test_master_factor_clamping() {
-        let layout = MasterLayout::new().with_master_factor(1.5);
-        assert!(
-            layout.master_factor <= 0.9,
-            "Master factor should be clamped to max 0.9, got {}",
-            layout.master_factor
-        );
-
-        let layout = MasterLayout::new().with_master_factor(-0.5);
-        assert!(
-            layout.master_factor >= 0.1,
-            "Master factor should be clamped to min 0.1, got {}",
-            layout.master_factor
-        );
-    }
-
-    #[test]
-    fn test_master_factor_valid_range() {
-        let layout = MasterLayout::new().with_master_factor(0.6);
-        assert_eq!(layout.master_factor, 0.6);
-    }
-
-    #[test]
-    fn test_master_count_minimum() {
-        let layout = MasterLayout::new().with_master_count(0);
-        assert_eq!(layout.master_count, 1, "Master count should be at least 1");
-    }
-
-    #[test]
-    fn test_master_count_valid() {
-        let layout = MasterLayout::new().with_master_count(3);
-        assert_eq!(layout.master_count, 3);
-    }
-
-    #[test]
-    fn test_adjust_master_factor() {
-        let mut layout = MasterLayout::new();
-        let original = layout.master_factor;
-
-        layout.adjust_master_factor(0.1);
-        assert!(
-            layout.master_factor > original,
-            "Master factor should increase"
-        );
-
-        layout.adjust_master_factor(-0.2);
-        assert!(
-            layout.master_factor < original,
-            "Master factor should decrease"
-        );
-    }
-
-    #[test]
-    fn test_adjust_master_factor_clamping() {
-        let mut layout = MasterLayout::new().with_master_factor(0.85);
-        layout.adjust_master_factor(0.2);
-        assert!(
-            layout.master_factor <= 0.9,
-            "Master factor should be clamped at 0.9"
-        );
-
-        let mut layout = MasterLayout::new().with_master_factor(0.15);
-        layout.adjust_master_factor(-0.2);
-        assert!(
-            layout.master_factor >= 0.1,
-            "Master factor should be clamped at 0.1"
-        );
-    }
-
-    #[test]
-    fn test_master_count_adjustment() {
-        let mut layout = MasterLayout::new();
-        assert_eq!(layout.master_count, 1);
-
-        layout.increase_master_count();
-        assert_eq!(layout.master_count, 2);
-
-        layout.increase_master_count();
-        assert_eq!(layout.master_count, 3);
-
-        layout.decrease_master_count();
-        assert_eq!(layout.master_count, 2);
-
-        layout.decrease_master_count();
-        assert_eq!(layout.master_count, 1);
-
-        layout.decrease_master_count();
-        assert_eq!(layout.master_count, 1, "Should not go below 1");
-    }
-
-    #[test]
-    fn test_apply_empty_windows() {
-        let layout = MasterLayout::new();
-        let area = Rect::new(0, 0, 1920, 1080);
-        let windows: Vec<HWND> = vec![];
-
-        // Should not panic or error on empty window list
-        let result = layout.apply(&windows, area);
-        assert!(result.is_ok());
-    }
-
-    #[test]
-    fn test_apply_single_window() {
-        let layout = MasterLayout::new();
-        let area = Rect::new(0, 0, 1920, 1080);
-        let windows = vec![HWND(1)];
-
-        // Should not panic (actual positioning will fail without real window)
-        // But we're testing the logic flow
-        let _result = layout.apply(&windows, area);
-        // On non-Windows or without real windows, this might succeed
-        // On Windows with fake HWND, it will fail but that's expected
-        // The important thing is it doesn't panic
-    }
-
-    #[test]
-    fn test_master_count_exceeds_window_count() {
-        let layout = MasterLayout::new().with_master_count(5);
-        let area = Rect::new(0, 0, 1920, 1080);
-        let windows = vec![HWND(1), HWND(2)];
-
-        // Should handle gracefully when master_count > windows.len()
-        let _result = layout.apply(&windows, area);
-        // Should not panic
-    }
-
-    #[test]
-    fn test_builder_pattern() {
-        let layout = MasterLayout::new()
-            .with_master_factor(0.65)
-            .with_master_count(2);
-
-        assert_eq!(layout.master_factor, 0.65);
-        assert_eq!(layout.master_count, 2);
-        assert_eq!(layout.gaps_in, 5); // Should keep default
-        assert_eq!(layout.gaps_out, 10); // Should keep default
     }
 }

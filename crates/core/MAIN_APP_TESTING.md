@@ -39,7 +39,7 @@ cargo run -p tiling-wm-core
 cargo run -p tiling-wm-core --release
 
 # Run with custom log level
-RUST_LOG=tiling_wm_core=trace cargo run -p tiling-wm-core
+RUST_LOG=tenraku_core=trace cargo run -p tiling-wm-core
 ```
 
 ## Expected Behavior

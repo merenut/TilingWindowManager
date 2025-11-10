@@ -2,8 +2,8 @@
 //!
 //! This example tests the IPC protocol types without requiring Windows dependencies.
 
-use tiling_wm_core::ipc::protocol::*;
-use tiling_wm_core::ipc::events::*;
+use tenraku_core::ipc::protocol::*;
+use tenraku_core::ipc::events::*;
 
 fn main() {
     println!("Testing IPC Protocol Implementation...\n");

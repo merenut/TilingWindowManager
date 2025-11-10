@@ -10,7 +10,7 @@ param(
 Write-Host "Switching to workspace $WorkspaceId..." -ForegroundColor Cyan
 
 try {
-    $result = & twm workspace $WorkspaceId 2>&1
+    $result = & tenrakuctl workspace $WorkspaceId 2>&1
     
     if ($LASTEXITCODE -eq 0) {
         Write-Host "Successfully switched to workspace $WorkspaceId" -ForegroundColor Green

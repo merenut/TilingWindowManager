@@ -1,10 +1,10 @@
 [package]
-name = "tiling-wm-cli"
+name = "tenraku-cli"
 version = "0.1.0"
 edition = "2021"
 
 [[bin]]
-name = "twm"
+name = "tenrakuctl"
 path = "src/main.rs"
 
 [dependencies]

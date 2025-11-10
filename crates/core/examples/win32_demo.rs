@@ -7,7 +7,7 @@
 
 #[cfg(target_os = "windows")]
 fn main() -> anyhow::Result<()> {
-    use tiling_wm_core::utils::win32::*;
+    use tenraku_core::utils::win32::*;
 
     println!("=== Windows API Wrapper Demo ===\n");
 

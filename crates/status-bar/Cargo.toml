@@ -1,18 +1,24 @@
 [package]
-name = "tiling-wm-status-bar"
+name = "tenraku-bar"
 version = "0.1.0"
 edition = "2021"
 
 [[bin]]
-name = "twm-bar"
+name = "tenraku-bar"
 path = "src/main.rs"
 
 [dependencies]
 # UI Framework
-iced = { version = "0.13", features = ["tokio"] }
+dioxus = { version = "0.6", features = ["desktop"] }
+dioxus-desktop = "0.6"
+
+# File watching for hot-reload
+notify = "6.1"
 
 # Async runtime
 tokio = { workspace = true }
+tokio-stream = "0.1"
+futures = "0.3"
 
 # Serialization
 serde = { workspace = true }

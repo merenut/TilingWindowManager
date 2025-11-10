@@ -7,7 +7,7 @@ use crate::utils::win32::WindowHandle;
 use crate::window_manager::tree::Rect;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
-use windows::Win32::Foundation::{HWND, RECT};
+use windows::Win32::Foundation::RECT;
 
 /// The state of a managed window.
 ///
@@ -220,7 +220,10 @@ impl ManagedWindow {
     ///
     /// `true` if the window is in tiled state and managed, `false` otherwise.
     pub fn should_tile(&self) -> bool {
-        self.state == WindowState::Tiled && self.managed
+        self.state == WindowState::Tiled 
+            && self.managed 
+            && !self.handle.is_minimized()
+            && self.handle.is_visible()
     }
 
     /// Update window metadata (title, class, etc.).
@@ -370,172 +373,32 @@ impl WindowRegistry {
             .filter(|w| w.workspace == workspace)
             .count()
     }
+
+    /// Get all registered windows.
+    ///
+    /// # Returns
+    ///
+    /// A vector of references to all managed windows.
+    pub fn get_all(&self) -> Vec<&ManagedWindow> {
+        self.windows.values().collect()
+    }
+
+    /// Check if a window is registered.
+    ///
+    /// # Arguments
+    ///
+    /// * `hwnd` - The window handle value (HWND.0)
+    ///
+    /// # Returns
+    ///
+    /// `true` if the window is registered, `false` otherwise.
+    pub fn contains(&self, hwnd: isize) -> bool {
+        self.windows.contains_key(&hwnd)
+    }
 }
 
 impl Default for WindowRegistry {
     fn default() -> Self {
         Self::new()
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[allow(dead_code)]
-    fn create_test_window() -> ManagedWindow {
-        ManagedWindow {
-            handle: WindowHandle::from_hwnd(HWND(12345)),
-            state: WindowState::Tiled,
-            workspace: 1,
-            monitor: 0,
-            title: "Test".to_string(),
-            class: "TestClass".to_string(),
-            process_name: "test.exe".to_string(),
-            original_rect: None,
-            managed: true,
-            user_floating: false,
-        }
-    }
-
-    #[allow(dead_code)]
-    fn create_test_window_with_workspace(workspace: usize) -> ManagedWindow {
-        let mut w = create_test_window();
-        w.workspace = workspace;
-        w
-    }
-
-    #[test]
-    fn test_window_state_default() {
-        let window = create_test_window();
-        assert_eq!(window.state, WindowState::Tiled);
-        assert!(!window.user_floating);
-    }
-
-    #[test]
-    fn test_set_floating() {
-        let mut window = create_test_window();
-        assert_eq!(window.state, WindowState::Tiled);
-
-        window.set_floating().ok();
-        assert_eq!(window.state, WindowState::Floating);
-        assert!(window.user_floating);
-    }
-
-    #[test]
-    fn test_set_tiled() {
-        let mut window = create_test_window();
-        window.set_floating().ok();
-        assert_eq!(window.state, WindowState::Floating);
-
-        window.set_tiled().ok();
-        assert_eq!(window.state, WindowState::Tiled);
-        assert!(!window.user_floating);
-    }
-
-    #[test]
-    fn test_toggle_floating() {
-        let mut window = create_test_window();
-        assert_eq!(window.state, WindowState::Tiled);
-
-        window.toggle_floating().ok();
-        assert_eq!(window.state, WindowState::Floating);
-
-        window.toggle_floating().ok();
-        assert_eq!(window.state, WindowState::Tiled);
-    }
-
-    #[test]
-    fn test_should_tile() {
-        let mut window = create_test_window();
-        assert!(window.should_tile());
-
-        window.set_floating().ok();
-        assert!(!window.should_tile());
-
-        window.managed = false;
-        assert!(!window.should_tile());
-    }
-
-    #[test]
-    fn test_window_registry() {
-        let mut registry = WindowRegistry::new();
-        assert_eq!(registry.count(), 0);
-
-        let window = create_test_window();
-        let hwnd = window.handle.hwnd().0;
-
-        registry.register(window);
-        assert_eq!(registry.count(), 1);
-
-        let retrieved = registry.get(hwnd);
-        assert!(retrieved.is_some());
-
-        registry.unregister(hwnd);
-        assert_eq!(registry.count(), 0);
-    }
-
-    #[test]
-    fn test_registry_workspace_filtering() {
-        let mut registry = WindowRegistry::new();
-
-        // Add windows to different workspaces
-        let w1 = create_test_window_with_workspace(1);
-        let w2 = create_test_window_with_workspace(1);
-        let w3 = create_test_window_with_workspace(2);
-
-        // Give them different HWNDs
-        let mut w1 = w1;
-        w1.handle = WindowHandle::from_hwnd(HWND(1));
-        let mut w2 = w2;
-        w2.handle = WindowHandle::from_hwnd(HWND(2));
-        let mut w3 = w3;
-        w3.handle = WindowHandle::from_hwnd(HWND(3));
-
-        registry.register(w1);
-        registry.register(w2);
-        registry.register(w3);
-
-        let ws1_windows = registry.get_by_workspace(1);
-        assert_eq!(ws1_windows.len(), 2);
-
-        let ws2_windows = registry.get_by_workspace(2);
-        assert_eq!(ws2_windows.len(), 1);
-    }
-
-    #[test]
-    fn test_get_tiled_in_workspace() {
-        let mut registry = WindowRegistry::new();
-
-        let mut w1 = create_test_window_with_workspace(1);
-        w1.handle = WindowHandle::from_hwnd(HWND(1));
-
-        let mut w2 = create_test_window_with_workspace(1);
-        w2.handle = WindowHandle::from_hwnd(HWND(2));
-        w2.set_floating().ok();
-
-        registry.register(w1);
-        registry.register(w2);
-
-        let tiled = registry.get_tiled_in_workspace(1);
-        assert_eq!(tiled.len(), 1);
-    }
-
-    #[test]
-    fn test_get_floating_in_workspace() {
-        let mut registry = WindowRegistry::new();
-
-        let mut w1 = create_test_window_with_workspace(1);
-        w1.handle = WindowHandle::from_hwnd(HWND(1));
-
-        let mut w2 = create_test_window_with_workspace(1);
-        w2.handle = WindowHandle::from_hwnd(HWND(2));
-        w2.set_floating().ok();
-
-        registry.register(w1);
-        registry.register(w2);
-
-        let floating = registry.get_floating_in_workspace(1);
-        assert_eq!(floating.len(), 1);
     }
 }

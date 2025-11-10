@@ -6,7 +6,7 @@ Write-Host "Toggling layout..." -ForegroundColor Cyan
 
 try {
     # Get current config to check layout
-    $configResult = & twm --format json config 2>&1
+    $configResult = & tenrakuctl --format json config 2>&1
     
     if ($LASTEXITCODE -ne 0) {
         Write-Host "Failed to get config: $configResult" -ForegroundColor Red
@@ -22,7 +22,7 @@ try {
     Write-Host "Current layout: $currentLayout" -ForegroundColor Gray
     Write-Host "Switching to: $newLayout" -ForegroundColor Yellow
     
-    $result = & twm layout $newLayout 2>&1
+    $result = & tenrakuctl layout $newLayout 2>&1
     
     if ($LASTEXITCODE -eq 0) {
         Write-Host "Successfully switched to $newLayout layout" -ForegroundColor Green

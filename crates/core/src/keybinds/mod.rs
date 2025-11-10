@@ -10,8 +10,8 @@
 //! # Example
 //!
 //! ```no_run
-//! use tiling_wm_core::keybinds::KeybindManager;
-//! use tiling_wm_core::config::schema::Keybind;
+//! use tenraku_core::keybinds::KeybindManager;
+//! use tenraku_core::config::schema::Keybind;
 //!
 //! let mut manager = KeybindManager::new();
 //!

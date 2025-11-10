@@ -13,10 +13,10 @@
 
 use std::sync::Arc;
 use tokio::sync::Mutex;
-use tiling_wm_core::commands::CommandExecutor;
-use tiling_wm_core::ipc::{Event, EventBroadcaster, IpcServer, RequestHandler};
-use tiling_wm_core::window_manager::WindowManager;
-use tiling_wm_core::workspace::{WorkspaceConfig, WorkspaceManager};
+use tenraku_core::commands::CommandExecutor;
+use tenraku_core::ipc::{Event, EventBroadcaster, IpcServer, RequestHandler};
+use tenraku_core::window_manager::WindowManager;
+use tenraku_core::workspace::{WorkspaceConfig, WorkspaceManager};
 
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {

@@ -42,7 +42,7 @@ pub struct MonitorInfo {
 ///
 /// # Examples
 /// ```no_run
-/// use tiling_wm_status_bar::monitor::enumerate_monitors;
+/// use tenraku_bar::monitor::enumerate_monitors;
 /// let monitors = enumerate_monitors();
 /// for monitor in monitors {
 ///     println!("Monitor: {:?}", monitor);
@@ -50,18 +50,28 @@ pub struct MonitorInfo {
 /// ```
 #[cfg(target_os = "windows")]
 pub fn enumerate_monitors() -> Vec<MonitorInfo> {
-    let mut monitors = MONITORS.lock().unwrap();
-    monitors.clear();
+    tracing::debug!("Starting monitor enumeration");
+    
+    // Clear any previous monitors
+    {
+        let mut monitors = MONITORS.lock().unwrap();
+        monitors.clear();
+        tracing::debug!("Cleared monitor list");
+    }
     
     unsafe {
-        let _ = EnumDisplayMonitors(
+        tracing::debug!("Calling EnumDisplayMonitors");
+        let result = EnumDisplayMonitors(
             HDC(0),
             None,
             Some(monitor_enum_proc),
             LPARAM(0),
         );
+        tracing::debug!("EnumDisplayMonitors returned: {:?}", result);
     }
     
+    let monitors = MONITORS.lock().unwrap();
+    tracing::debug!("Found {} monitors", monitors.len());
     monitors.clone()
 }
 
@@ -121,7 +131,7 @@ extern "system" fn monitor_enum_proc(
 ///
 /// # Examples
 /// ```no_run
-/// use tiling_wm_status_bar::monitor::get_primary_monitor;
+/// use tenraku_bar::monitor::get_primary_monitor;
 /// if let Some(primary) = get_primary_monitor() {
 ///     println!("Primary monitor work area: {:?}", primary.work_area);
 /// }
@@ -139,7 +149,7 @@ pub fn get_primary_monitor() -> Option<MonitorInfo> {
 ///
 /// # Examples
 /// ```no_run
-/// use tiling_wm_status_bar::monitor::get_monitor_count;
+/// use tenraku_bar::monitor::get_monitor_count;
 /// println!("Number of monitors: {}", get_monitor_count());
 /// ```
 pub fn get_monitor_count() -> usize {
@@ -156,7 +166,7 @@ pub fn get_monitor_count() -> usize {
 ///
 /// # Examples
 /// ```no_run
-/// use tiling_wm_status_bar::monitor::get_monitor_by_index;
+/// use tenraku_bar::monitor::get_monitor_by_index;
 /// if let Some(monitor) = get_monitor_by_index(0) {
 ///     println!("Monitor 0: {:?}", monitor);
 /// }

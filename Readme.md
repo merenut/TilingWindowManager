@@ -1,4 +1,4 @@
-# Tiling Window Manager for Windows
+# Tenraku - Tiling Window Manager for Windows
 
 A **production-ready tiling window manager** for Windows 10/11, written in Rust, inspired by Hyprland and Waybar.
 
@@ -106,7 +106,7 @@ See [ROADMAP_SUMMARY.md](ROADMAP_SUMMARY.md) for detailed timeline.
 └──────────────┬──────────────────────┘
                │ Win32 API
 ┌──────────────▼──────────────────────┐
-│    Tiling Window Manager Core       │
+│         Tenraku Core                │
 │  - Binary tree layout engine        │
 │  - Workspace management             │
 │  - Window rules engine              │

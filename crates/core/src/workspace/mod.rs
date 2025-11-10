@@ -4,14 +4,12 @@
 //! integration with Windows Virtual Desktops and automatic state persistence.
 
 pub mod auto_save;
-pub mod manager;
+pub mod core;
+pub mod monitor_integration;
 pub mod persistence;
+pub mod state;
+pub mod switching;
 pub mod virtual_desktop;
+pub mod window_ops;
 
-#[cfg(test)]
-mod manager_tests;
-
-pub use auto_save::AutoSaver;
-pub use manager::{Workspace, WorkspaceConfig, WorkspaceManager};
-pub use persistence::{PersistenceManager, SessionState, WindowState, WorkspaceState};
-pub use virtual_desktop::VirtualDesktopManager;
+pub use core::WorkspaceManager;

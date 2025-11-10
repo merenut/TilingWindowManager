@@ -3,6 +3,7 @@ members = [
     "crates/core",
     "crates/cli",
     "crates/status-bar",
+    "crates/command-palette",
 ]
 resolver = "2"
 
@@ -17,6 +18,8 @@ windows = { version = "0.52", features = [
     "Win32_System_Com",
     "Win32_UI_Shell",
     "Win32_UI_Accessibility",
+    "Win32_UI_Shell_Common",
+    "implement",
 ] }
 tokio = { version = "1.35", features = ["full"] }
 serde = { version = "1.0", features = ["derive"] }

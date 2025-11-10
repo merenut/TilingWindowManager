@@ -33,7 +33,7 @@ The Tiling Window Manager provides an IPC (Inter-Process Communication) interfac
 
 ### Named Pipe
 
-**Default Path:** `\\.\pipe\tiling-wm`
+**Default Path:** `\\\\.\\pipe\\tenraku`
 
 The window manager creates a Windows named pipe server that listens for incoming connections. Multiple clients can connect simultaneously.
 
@@ -53,7 +53,7 @@ import win32pipe
 import win32file
 
 pipe = win32file.CreateFile(
-    r'\\.\pipe\tiling-wm',
+    r'\\\\.\\pipe\\tenraku',
     win32file.GENERIC_READ | win32file.GENERIC_WRITE,
     0, None,
     win32file.OPEN_EXISTING,
@@ -67,7 +67,7 @@ pipe = win32file.CreateFile(
 use tokio::net::windows::named_pipe::ClientOptions;
 
 let client = ClientOptions::new()
-    .open(r"\\.\pipe\tiling-wm")?;
+    .open(r"\\\\.\\pipe\\tenraku")?;
 ```
 
 ## Protocol Format
@@ -929,7 +929,7 @@ The protocol follows semantic versioning:
 
 **Using CLI:**
 ```bash
-twm version
+tenrakuctl version
 ```
 
 **Using IPC Request:**
@@ -1040,7 +1040,7 @@ See the [examples/ipc](../../examples/ipc/) directory for complete examples in P
 2. Confirm the pipe name is correct
    ```bash
    # Default pipe name
-   \\.\pipe\tiling-wm
+   \\\\.\\pipe\\tenraku
    ```
 
 3. Check permissions
@@ -1051,7 +1051,7 @@ See the [examples/ipc](../../examples/ipc/) directory for complete examples in P
 4. Verify the pipe exists
    - Use the CLI ping command to test connectivity
    ```bash
-   twm ping
+   tenrakuctl ping
    ```
 
 #### Requests Timeout
@@ -1089,7 +1089,7 @@ See the [examples/ipc](../../examples/ipc/) directory for complete examples in P
 1. Verify subscription was successful
    ```bash
    # Check subscription response
-   twm --format json listen --events window_created
+   tenrakuctl --format json listen --events window_created
    ```
 
 2. Validate event names
@@ -1116,13 +1116,13 @@ See the [examples/ipc](../../examples/ipc/) directory for complete examples in P
 1. Validate JSON format
    ```bash
    # Use JSON formatter to check output
-   twm --format json workspaces | python -m json.tool
+   tenrakuctl --format json workspaces | python -m json.tool
    ```
 
 2. Check protocol version compatibility
    ```bash
    # Verify protocol version
-   twm version
+   tenrakuctl version
    ```
 
 3. Ensure all required fields are present
@@ -1143,21 +1143,21 @@ See the [examples/ipc](../../examples/ipc/) directory for complete examples in P
 **Solutions:**
 1. Verify window manager is running
    ```bash
-   twm ping
+   tenrakuctl ping
    ```
 
 2. Check pipe path is correct
    ```bash
    # Use default pipe or specify custom
-   twm --pipe \\.\pipe\tiling-wm ping
+   tenrakuctl --pipe \\\\.\\pipe\\tenraku ping
    ```
 
 3. Test with simple commands first
    ```bash
    # Try basic commands
-   twm version
-   twm ping
-   twm workspaces
+   tenrakuctl version
+   tenrakuctl ping
+   tenrakuctl workspaces
    ```
 
 4. Check for permission issues
@@ -1212,19 +1212,19 @@ See the [examples/ipc](../../examples/ipc/) directory for complete examples in P
 1. **Enable verbose output**
    ```bash
    # Check detailed error messages
-   twm <command> 2>&1
+   tenrakuctl <command> 2>&1
    ```
 
 2. **Test connectivity first**
    ```bash
    # Always start with ping
-   twm ping
+   tenrakuctl ping
    ```
 
 3. **Verify JSON responses**
    ```bash
    # Use JSON format to see exact responses
-   twm --format json <command>
+   tenrakuctl --format json <command>
    ```
 
 4. **Check window manager logs**

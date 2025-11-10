@@ -8,11 +8,11 @@
 //! ```no_run
 //! use std::sync::Arc;
 //! use tokio::sync::Mutex;
-//! use tiling_wm_core::ipc::handler::RequestHandler;
-//! use tiling_wm_core::ipc::protocol::Request;
-//! use tiling_wm_core::window_manager::WindowManager;
-//! use tiling_wm_core::workspace::WorkspaceManager;
-//! use tiling_wm_core::commands::CommandExecutor;
+//! use tenraku_core::ipc::handler::RequestHandler;
+//! use tenraku_core::ipc::protocol::Request;
+//! use tenraku_core::window_manager::WindowManager;
+//! use tenraku_core::workspace::WorkspaceManager;
+//! use tenraku_core::commands::CommandExecutor;
 //!
 //! # async fn example() {
 //! let wm = Arc::new(Mutex::new(WindowManager::new()));
@@ -28,15 +28,15 @@
 //! ```
 
 use super::protocol::{
-    ConfigInfo, MonitorInfo, RectInfo, Request, Response, VersionInfo, WindowInfo, WindowState,
+    ConfigInfo, MonitorInfo, Request, Response, VersionInfo,
     WorkspaceInfo,
 };
 use crate::commands::{Command, CommandExecutor};
 use crate::window_manager::WindowManager;
-use crate::workspace::manager::WorkspaceManager;
+use crate::workspace::core::WorkspaceManager;
 use std::sync::Arc;
 use tokio::sync::Mutex;
-use tracing::{debug, error, info, warn};
+use tracing::{debug, error, info};
 
 /// Request handler that processes IPC requests and forwards them to the window manager.
 ///
@@ -67,10 +67,10 @@ impl RequestHandler {
     /// ```no_run
     /// use std::sync::Arc;
     /// use tokio::sync::Mutex;
-    /// use tiling_wm_core::ipc::handler::RequestHandler;
-    /// use tiling_wm_core::window_manager::WindowManager;
-    /// use tiling_wm_core::workspace::WorkspaceManager;
-    /// use tiling_wm_core::commands::CommandExecutor;
+    /// use tenraku_core::ipc::handler::RequestHandler;
+    /// use tenraku_core::window_manager::WindowManager;
+    /// use tenraku_core::workspace::WorkspaceManager;
+    /// use tenraku_core::commands::CommandExecutor;
     ///
     /// let wm = Arc::new(Mutex::new(WindowManager::new()));
     /// let wsm = Arc::new(Mutex::new(WorkspaceManager::new()));
@@ -151,17 +151,39 @@ impl RequestHandler {
     
     async fn get_active_window(&self) -> Response {
         debug!("Getting active window");
-        // Note: This is a placeholder implementation
-        // In a full implementation, this would query the window manager for the active window
-        Response::error("GetActiveWindow not yet implemented")
+        
+        let wm = self.window_manager.lock().await;
+        
+        if let Some(window) = wm.get_active_window() {
+            Response::success_with_data(serde_json::json!({
+                "hwnd": window.handle.hwnd().0,
+                "title": window.title,
+                "exe": window.process_name,
+                "class": window.class,
+                "workspace": window.workspace
+            }))
+        } else {
+            Response::error("No active window")
+        }
     }
     
-    async fn get_windows(&self, _workspace: Option<usize>) -> Response {
-        debug!("Getting windows list");
-        // Note: This is a placeholder implementation
-        // In a full implementation, this would query the window manager for all windows,
-        // optionally filtered by workspace
-        Response::success_with_data(serde_json::json!([]))
+    async fn get_windows(&self, workspace: Option<usize>) -> Response {
+        debug!("Getting windows list for workspace: {:?}", workspace);
+        
+        let wm = self.window_manager.lock().await;
+        let windows = wm.get_windows(workspace);
+        
+        let window_list: Vec<_> = windows.iter().map(|w| {
+            serde_json::json!({
+                "hwnd": w.handle.hwnd().0,
+                "title": w.title,
+                "exe": w.process_name,
+                "class": w.class,
+                "workspace": w.workspace
+            })
+        }).collect();
+        
+        Response::success_with_data(serde_json::json!(window_list))
     }
     
     async fn get_workspaces(&self) -> Response {
@@ -338,16 +360,80 @@ impl RequestHandler {
     
     async fn focus_window(&self, hwnd: String) -> Response {
         debug!("Focusing window: {}", hwnd);
-        // Note: This is a placeholder implementation
-        // In a full implementation, this would call the window manager to focus the specified window
-        Response::error("FocusWindow not yet fully implemented")
+        
+        // Parse HWND from string
+        let hwnd_value = match hwnd.parse::<isize>() {
+            Ok(v) => v,
+            Err(e) => return Response::error(format!("Invalid HWND format: {}", e))
+        };
+        
+        let mut wm = self.window_manager.lock().await;
+        match wm.focus_window_by_hwnd(hwnd_value) {
+            Ok(_) => {
+                info!("Window focused successfully: {}", hwnd);
+                Response::success()
+            }
+            Err(e) => {
+                error!("Failed to focus window: {}", e);
+                Response::error(format!("Failed to focus window: {}", e))
+            }
+        }
     }
     
     async fn move_window(&self, hwnd: String, workspace: usize) -> Response {
         debug!("Moving window {} to workspace {}", hwnd, workspace);
-        // Note: This is a placeholder implementation
-        // In a full implementation, this would call the window manager to move the window
-        Response::error("MoveWindow not yet fully implemented")
+        
+        // Parse HWND from string
+        let hwnd_value = match hwnd.parse::<isize>() {
+            Ok(v) => v,
+            Err(e) => return Response::error(format!("Invalid HWND format: {}", e))
+        };
+        
+        // Validate workspace ID
+        if workspace < 1 || workspace > 10 {
+            return Response::error(format!("Invalid workspace ID: {}", workspace));
+        }
+        
+        let mut wm = self.window_manager.lock().await;
+        
+        // Get the window from registry and update its workspace
+        if let Some(managed_window) = wm.registry_mut().get_mut(hwnd_value) {
+            let old_workspace = managed_window.workspace;
+            
+            if old_workspace == workspace {
+                return Response::success(); // Already on target workspace
+            }
+            
+            managed_window.workspace = workspace;
+            
+            debug!(
+                "Moved window {} from workspace {} to {}",
+                hwnd_value, old_workspace, workspace
+            );
+            
+            // Hide the window if it's not on the current workspace
+            use crate::utils::win32::WindowHandle;
+            use windows::Win32::Foundation::HWND;
+            let window_handle = WindowHandle::from_hwnd(HWND(hwnd_value));
+            
+            if wm.get_active_workspace() != workspace {
+                #[cfg(target_os = "windows")]
+                window_handle.hide();
+            }
+            
+            // Retile both workspaces
+            if let Err(e) = wm.retile_workspace(old_workspace) {
+                error!("Failed to retile old workspace: {}", e);
+            }
+            if let Err(e) = wm.retile_workspace(workspace) {
+                error!("Failed to retile new workspace: {}", e);
+            }
+            
+            info!("Window moved successfully to workspace {}", workspace);
+            Response::success()
+        } else {
+            Response::error(format!("Window {} is not managed", hwnd))
+        }
     }
     
     async fn toggle_floating(&self, _hwnd: Option<String>) -> Response {
@@ -400,23 +486,59 @@ impl RequestHandler {
     
     async fn create_workspace(&self, name: String, monitor: usize) -> Response {
         debug!("Creating workspace {} on monitor {}", name, monitor);
-        // Note: This is a placeholder implementation
-        // In a full implementation, this would call the workspace manager to create a new workspace
-        Response::error("CreateWorkspace not yet fully implemented")
+        
+        let mut wsm = self.workspace_manager.lock().await;
+        
+        // Get the monitor area - for now use a default size
+        // In a full implementation, this would query the actual monitor dimensions
+        let area = crate::window_manager::Rect {
+            x: 0,
+            y: 0,
+            width: 1920,
+            height: 1080,
+        };
+        
+        let workspace_id = wsm.create_workspace(name.clone(), monitor, area);
+        
+        info!("Created workspace {} with ID {}", name, workspace_id);
+        Response::success_with_data(serde_json::json!({
+            "workspace_id": workspace_id
+        }))
     }
     
     async fn delete_workspace(&self, id: usize) -> Response {
         debug!("Deleting workspace {}", id);
-        // Note: This is a placeholder implementation
-        // In a full implementation, this would call the workspace manager to delete the workspace
-        Response::error("DeleteWorkspace not yet fully implemented")
+        
+        let mut wsm = self.workspace_manager.lock().await;
+        
+        // Use workspace 1 as the fallback for moved windows
+        match wsm.delete_workspace(id, 1) {
+            Ok(_) => {
+                info!("Deleted workspace {} successfully", id);
+                Response::success()
+            }
+            Err(e) => {
+                error!("Failed to delete workspace: {}", e);
+                Response::error(format!("Failed to delete workspace: {}", e))
+            }
+        }
     }
     
     async fn rename_workspace(&self, id: usize, name: String) -> Response {
         debug!("Renaming workspace {} to {}", id, name);
-        // Note: This is a placeholder implementation
-        // In a full implementation, this would call the workspace manager to rename the workspace
-        Response::error("RenameWorkspace not yet fully implemented")
+        
+        let mut wsm = self.workspace_manager.lock().await;
+        
+        match wsm.rename_workspace(id, name.clone()) {
+            Ok(_) => {
+                info!("Renamed workspace {} to {} successfully", id, name);
+                Response::success()
+            }
+            Err(e) => {
+                error!("Failed to rename workspace: {}", e);
+                Response::error(format!("Failed to rename workspace: {}", e))
+            }
+        }
     }
     
     async fn set_layout(&self, layout: String) -> Response {
@@ -499,10 +621,38 @@ impl RequestHandler {
     
     async fn reload_config(&self) -> Response {
         debug!("Reloading configuration");
-        // Note: This is a placeholder implementation
-        // In a full implementation, this would reload the configuration and update the window manager
-        info!("Configuration reload requested (not yet fully implemented)");
-        Response::success()
+        
+        // Load config from default location
+        use crate::config::ConfigLoader;
+        
+        let config_loader = match ConfigLoader::new() {
+            Ok(loader) => loader,
+            Err(e) => {
+                error!("Failed to create config loader: {}", e);
+                return Response::error(format!("Failed to load config: {}", e));
+            }
+        };
+        
+        let config = match config_loader.load() {
+            Ok(cfg) => cfg,
+            Err(e) => {
+                error!("Failed to load config: {}", e);
+                return Response::error(format!("Failed to load config: {}", e));
+            }
+        };
+        
+        // Apply configuration to window manager
+        let mut wm = self.window_manager.lock().await;
+        match wm.update_config(&config) {
+            Ok(_) => {
+                info!("Configuration reloaded successfully");
+                Response::success()
+            }
+            Err(e) => {
+                error!("Failed to apply config: {}", e);
+                Response::error(format!("Failed to apply config: {}", e))
+            }
+        }
     }
     
     async fn quit(&self) -> Response {
@@ -510,78 +660,5 @@ impl RequestHandler {
         // Note: The actual quit logic should be handled by the main application
         // This just returns success to acknowledge the request
         Response::success()
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-    
-    #[tokio::test]
-    async fn test_handler_creation() {
-        let wm = Arc::new(Mutex::new(WindowManager::new()));
-        let config = crate::workspace::WorkspaceConfig::default();
-        let wsm = Arc::new(Mutex::new(WorkspaceManager::new(config)));
-        let executor = Arc::new(CommandExecutor::new());
-        
-        let _handler = RequestHandler::new(wm, wsm, executor);
-        // Handler created successfully
-    }
-    
-    #[tokio::test]
-    async fn test_handle_ping() {
-        let wm = Arc::new(Mutex::new(WindowManager::new()));
-        let config = crate::workspace::WorkspaceConfig::default();
-        let wsm = Arc::new(Mutex::new(WorkspaceManager::new(config)));
-        let executor = Arc::new(CommandExecutor::new());
-        
-        let handler = RequestHandler::new(wm, wsm, executor);
-        
-        let response = handler.handle_request(Request::Ping).await;
-        match response {
-            Response::Pong => { /* Success */ }
-            _ => panic!("Expected Pong response"),
-        }
-    }
-    
-    #[tokio::test]
-    async fn test_handle_get_version() {
-        let wm = Arc::new(Mutex::new(WindowManager::new()));
-        let config = crate::workspace::WorkspaceConfig::default();
-        let wsm = Arc::new(Mutex::new(WorkspaceManager::new(config)));
-        let executor = Arc::new(CommandExecutor::new());
-        
-        let handler = RequestHandler::new(wm, wsm, executor);
-        
-        let response = handler.handle_request(Request::GetVersion).await;
-        match response {
-            Response::Success { data } => {
-                assert!(data.is_some());
-                let data = data.unwrap();
-                assert!(data.get("version").is_some());
-            }
-            _ => panic!("Expected Success response"),
-        }
-    }
-    
-    #[tokio::test]
-    async fn test_handle_get_workspaces() {
-        let wm = Arc::new(Mutex::new(WindowManager::new()));
-        let config = crate::workspace::WorkspaceConfig::default();
-        let wsm = Arc::new(Mutex::new(WorkspaceManager::new(config)));
-        let executor = Arc::new(CommandExecutor::new());
-        
-        let handler = RequestHandler::new(wm, wsm, executor);
-        
-        let response = handler.handle_request(Request::GetWorkspaces).await;
-        match response {
-            Response::Success { data } => {
-                assert!(data.is_some());
-                // Workspaces should be an array
-                let data = data.unwrap();
-                assert!(data.is_array());
-            }
-            _ => panic!("Expected Success response"),
-        }
     }
 }

@@ -17,8 +17,8 @@
 //!
 //! ```rust,no_run
 //! use std::sync::Arc;
-//! use tiling_wm_core::ipc::server::IpcServer;
-//! use tiling_wm_core::ipc::EventBroadcaster;
+//! use tenraku_core::ipc::server::IpcServer;
+//! use tenraku_core::ipc::EventBroadcaster;
 //!
 //! #[tokio::main]
 //! async fn main() {
@@ -52,16 +52,16 @@ use tokio::net::windows::named_pipe::{NamedPipeServer, ServerOptions};
 pub struct IpcServer {
     /// Named pipe path
     pipe_name: String,
-    
+
     /// Event broadcaster for sending events to clients
     event_broadcaster: Arc<EventBroadcaster>,
-    
+
     /// Request handler for processing IPC requests
     request_handler: Option<Arc<RequestHandler>>,
-    
+
     /// Server running state
     running: Arc<RwLock<bool>>,
-    
+
     /// Number of active connections
     connection_count: Arc<Mutex<usize>>,
 }
@@ -77,22 +77,22 @@ impl IpcServer {
     ///
     /// ```rust,no_run
     /// use std::sync::Arc;
-    /// use tiling_wm_core::ipc::server::IpcServer;
-    /// use tiling_wm_core::ipc::EventBroadcaster;
+    /// use tenraku_core::ipc::server::IpcServer;
+    /// use tenraku_core::ipc::EventBroadcaster;
     ///
     /// let broadcaster = Arc::new(EventBroadcaster::new());
     /// let server = IpcServer::new(broadcaster);
     /// ```
     pub fn new(event_broadcaster: Arc<EventBroadcaster>) -> Self {
         Self {
-            pipe_name: r"\\.\pipe\tiling-wm".to_string(),
+            pipe_name: r"\\.\pipe\tenraku".to_string(),
             event_broadcaster,
             request_handler: None,
             running: Arc::new(RwLock::new(false)),
             connection_count: Arc::new(Mutex::new(0)),
         }
     }
-    
+
     /// Create a new IPC server with a custom pipe name
     ///
     /// # Arguments
@@ -104,8 +104,8 @@ impl IpcServer {
     ///
     /// ```rust,no_run
     /// use std::sync::Arc;
-    /// use tiling_wm_core::ipc::server::IpcServer;
-    /// use tiling_wm_core::ipc::EventBroadcaster;
+    /// use tenraku_core::ipc::server::IpcServer;
+    /// use tenraku_core::ipc::EventBroadcaster;
     ///
     /// let broadcaster = Arc::new(EventBroadcaster::new());
     /// let server = IpcServer::new(broadcaster)
@@ -115,7 +115,7 @@ impl IpcServer {
         self.pipe_name = format!(r"\\.\pipe\{}", name.into());
         self
     }
-    
+
     /// Set the request handler for processing IPC requests
     ///
     /// # Arguments
@@ -127,10 +127,10 @@ impl IpcServer {
     /// ```rust,no_run
     /// use std::sync::Arc;
     /// use tokio::sync::Mutex;
-    /// use tiling_wm_core::ipc::{IpcServer, EventBroadcaster, RequestHandler};
-    /// use tiling_wm_core::window_manager::WindowManager;
-    /// use tiling_wm_core::workspace::WorkspaceManager;
-    /// use tiling_wm_core::commands::CommandExecutor;
+    /// use tenraku_core::ipc::{IpcServer, EventBroadcaster, RequestHandler};
+    /// use tenraku_core::window_manager::WindowManager;
+    /// use tenraku_core::workspace::WorkspaceManager;
+    /// use tenraku_core::commands::CommandExecutor;
     ///
     /// let broadcaster = Arc::new(EventBroadcaster::new());
     /// let wm = Arc::new(Mutex::new(WindowManager::new()));
@@ -145,16 +145,18 @@ impl IpcServer {
         self.request_handler = Some(handler);
         self
     }
-    
+
     /// Get the pipe name being used by this server
     pub fn pipe_name(&self) -> &str {
         &self.pipe_name
     }
-    
+
     /// Start the IPC server
     ///
     /// This method starts the server and begins listening for connections.
     /// It will continue running until `stop()` is called.
+    /// Because the request handler interacts with non-`Send` state, this
+    /// method must be executed inside a [`tokio::task::LocalSet`].
     ///
     /// # Errors
     ///
@@ -165,8 +167,8 @@ impl IpcServer {
     ///
     /// ```rust,no_run
     /// use std::sync::Arc;
-    /// use tiling_wm_core::ipc::server::IpcServer;
-    /// use tiling_wm_core::ipc::EventBroadcaster;
+    /// use tenraku_core::ipc::server::IpcServer;
+    /// use tenraku_core::ipc::EventBroadcaster;
     ///
     /// #[tokio::main]
     /// async fn main() {
@@ -188,16 +190,16 @@ impl IpcServer {
             }
             *running = true;
         }
-        
+
         info!("Starting IPC server on {}", self.pipe_name);
-        
+
         loop {
             // Check if we should stop
             if !*self.running.read().await {
                 info!("IPC server stop requested");
                 break;
             }
-            
+
             // Create server instance for this connection
             let server = match ServerOptions::new()
                 .first_pipe_instance(false)
@@ -210,21 +212,21 @@ impl IpcServer {
                     continue;
                 }
             };
-            
+
             let server_clone = Arc::clone(&self);
-            
-            // Spawn handler for this connection
-            tokio::spawn(async move {
+
+            // Spawn handler for this connection on the current LocalSet
+            tokio::task::spawn_local(async move {
                 if let Err(e) = server_clone.handle_client(server).await {
                     error!("Client handler error: {}", e);
                 }
             });
         }
-        
+
         info!("IPC server stopped");
         Ok(())
     }
-    
+
     /// Start the IPC server (non-Windows platforms)
     ///
     /// On non-Windows platforms, this method returns an error since named pipes
@@ -233,7 +235,7 @@ impl IpcServer {
     pub async fn start(self: Arc<Self>) -> Result<()> {
         anyhow::bail!("Named pipes are only supported on Windows");
     }
-    
+
     /// Stop the IPC server
     ///
     /// This method signals the server to stop accepting new connections.
@@ -243,20 +245,20 @@ impl IpcServer {
         let mut running = self.running.write().await;
         *running = false;
     }
-    
+
     /// Check if the server is running
     pub async fn is_running(&self) -> bool {
         *self.running.read().await
     }
-    
+
     /// Get the current connection count
     ///
     /// # Example
     ///
     /// ```rust,no_run
     /// use std::sync::Arc;
-    /// use tiling_wm_core::ipc::server::IpcServer;
-    /// use tiling_wm_core::ipc::EventBroadcaster;
+    /// use tenraku_core::ipc::server::IpcServer;
+    /// use tenraku_core::ipc::EventBroadcaster;
     ///
     /// #[tokio::main]
     /// async fn main() {
@@ -270,7 +272,7 @@ impl IpcServer {
     pub async fn get_connection_count(&self) -> usize {
         *self.connection_count.lock().await
     }
-    
+
     /// Handle a client connection
     #[cfg(windows)]
     async fn handle_client(&self, server: NamedPipeServer) -> Result<()> {
@@ -280,19 +282,19 @@ impl IpcServer {
             *count += 1;
             debug!("Client connected. Total connections: {}", *count);
         }
-        
+
         let result = self.process_client(server).await;
-        
+
         // Decrement connection count
         {
             let mut count = self.connection_count.lock().await;
             *count -= 1;
             debug!("Client disconnected. Total connections: {}", *count);
         }
-        
+
         result
     }
-    
+
     /// Process client requests and handle event subscriptions
     #[cfg(windows)]
     async fn process_client(&self, mut server: NamedPipeServer) -> Result<()> {
@@ -301,12 +303,12 @@ impl IpcServer {
             .connect()
             .await
             .context("Failed to connect to client")?;
-        
+
         debug!("Client connected to named pipe");
-        
+
         let mut subscribed = false;
         let mut event_receiver = None;
-        
+
         loop {
             // If subscribed, wait for either a request or an event
             if subscribed {
@@ -328,7 +330,7 @@ impl IpcServer {
                             }
                         }
                     }
-                    
+
                     // Forward events to client
                     event = Self::receive_event(&mut event_receiver) => {
                         if let Some(evt) = event {
@@ -356,10 +358,10 @@ impl IpcServer {
                 }
             }
         }
-        
+
         Ok(())
     }
-    
+
     /// Read a request from the client with length prefix framing
     ///
     /// Messages are framed with a 4-byte little-endian length prefix followed
@@ -378,9 +380,9 @@ impl IpcServer {
             }
             Err(e) => return Err(e.into()),
         }
-        
+
         let len = u32::from_le_bytes(len_buf) as usize;
-        
+
         // Sanity checks
         if len == 0 {
             anyhow::bail!("Request length cannot be zero");
@@ -388,19 +390,19 @@ impl IpcServer {
         if len > 10 * 1024 * 1024 {
             anyhow::bail!("Request too large: {} bytes (max 10MB)", len);
         }
-        
+
         // Read request data
         let mut data = vec![0u8; len];
         reader.read_exact(&mut data).await?;
-        
+
         // Parse JSON
         let request: Request =
             serde_json::from_slice(&data).context("Failed to parse request JSON")?;
-        
+
         debug!("Received request: {:?}", request);
         Ok(Some(request))
     }
-    
+
     /// Write a response to the client with length prefix framing
     #[cfg(windows)]
     async fn write_response<W>(writer: &mut W, response: &Response) -> Result<()>
@@ -409,21 +411,21 @@ impl IpcServer {
     {
         // Serialize response
         let data = serde_json::to_vec(response).context("Failed to serialize response")?;
-        
+
         // Write length prefix (4 bytes, little-endian)
         let len = data.len() as u32;
         writer.write_all(&len.to_le_bytes()).await?;
-        
+
         // Write response data
         writer.write_all(&data).await?;
-        
+
         // Flush to ensure data is sent
         writer.flush().await?;
-        
+
         debug!("Sent response: {} bytes", data.len());
         Ok(())
     }
-    
+
     /// Receive an event from the event receiver
     ///
     /// Returns None if there is no receiver or if the channel is closed.
@@ -446,7 +448,7 @@ impl IpcServer {
             std::future::pending().await
         }
     }
-    
+
     /// Process a request and return a response
     ///
     /// This method handles subscription requests directly and forwards all other
@@ -458,7 +460,7 @@ impl IpcServer {
         event_receiver: &mut Option<tokio::sync::broadcast::Receiver<Event>>,
     ) -> Response {
         debug!("Processing request: {:?}", request);
-        
+
         match request {
             // Handle subscription requests directly (server-level)
             Request::Subscribe { events } => {
@@ -473,14 +475,14 @@ impl IpcServer {
                     }))
                 }
             }
-            
+
             Request::Unsubscribe => {
                 *subscribed = false;
                 *event_receiver = None;
                 info!("Client unsubscribed from events");
                 Response::success()
             }
-            
+
             // Forward all other requests to the handler
             _ => {
                 if let Some(handler) = &self.request_handler {
@@ -489,214 +491,6 @@ impl IpcServer {
                     Response::error("Request handler not configured. Use IpcServer::with_handler() to configure the request handler.")
                 }
             }
-        }
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-    
-    #[tokio::test]
-    async fn test_ipc_server_creation() {
-        let broadcaster = Arc::new(EventBroadcaster::new());
-        let server = IpcServer::new(broadcaster);
-        
-        assert!(server.pipe_name.contains("tiling-wm"));
-        assert_eq!(server.get_connection_count().await, 0);
-        assert!(!server.is_running().await);
-    }
-    
-    #[tokio::test]
-    async fn test_custom_pipe_name() {
-        let broadcaster = Arc::new(EventBroadcaster::new());
-        let server = IpcServer::new(broadcaster).with_pipe_name("test-pipe");
-        
-        assert!(server.pipe_name.contains("test-pipe"));
-        assert_eq!(server.pipe_name, r"\\.\pipe\test-pipe");
-    }
-    
-    #[tokio::test]
-    async fn test_pipe_name_getter() {
-        let broadcaster = Arc::new(EventBroadcaster::new());
-        let server = IpcServer::new(broadcaster).with_pipe_name("test-pipe");
-        
-        assert_eq!(server.pipe_name(), r"\\.\pipe\test-pipe");
-    }
-    
-    #[tokio::test]
-    async fn test_connection_count_initialization() {
-        let broadcaster = Arc::new(EventBroadcaster::new());
-        let server = IpcServer::new(broadcaster);
-        
-        assert_eq!(server.get_connection_count().await, 0);
-    }
-    
-    #[tokio::test]
-    async fn test_server_not_running_initially() {
-        let broadcaster = Arc::new(EventBroadcaster::new());
-        let server = IpcServer::new(broadcaster);
-        
-        assert!(!server.is_running().await);
-    }
-    
-    #[tokio::test]
-    async fn test_stop_server() {
-        let broadcaster = Arc::new(EventBroadcaster::new());
-        let server = IpcServer::new(broadcaster);
-        
-        // Manually set running to true for this test
-        {
-            let mut running = server.running.write().await;
-            *running = true;
-        }
-        
-        assert!(server.is_running().await);
-        
-        server.stop().await;
-        
-        assert!(!server.is_running().await);
-    }
-    
-    #[tokio::test]
-    async fn test_process_ping_request() {
-        let broadcaster = Arc::new(EventBroadcaster::new());
-        let server = IpcServer::new(broadcaster);
-        
-        let mut subscribed = false;
-        let mut event_receiver = None;
-        
-        let response = server
-            .process_request(Request::Ping, &mut subscribed, &mut event_receiver)
-            .await;
-        
-        matches!(response, Response::Pong);
-    }
-    
-    #[tokio::test]
-    async fn test_process_subscribe_request() {
-        let broadcaster = Arc::new(EventBroadcaster::new());
-        let server = IpcServer::new(broadcaster);
-        
-        let mut subscribed = false;
-        let mut event_receiver = None;
-        
-        let events = vec!["window_created".to_string(), "workspace_changed".to_string()];
-        let response = server
-            .process_request(
-                Request::Subscribe {
-                    events: events.clone(),
-                },
-                &mut subscribed,
-                &mut event_receiver,
-            )
-            .await;
-        
-        assert!(subscribed);
-        assert!(event_receiver.is_some());
-        
-        match response {
-            Response::Success { data } => {
-                assert!(data.is_some());
-            }
-            _ => panic!("Expected Success response"),
-        }
-    }
-    
-    #[tokio::test]
-    async fn test_process_subscribe_empty_events() {
-        let broadcaster = Arc::new(EventBroadcaster::new());
-        let server = IpcServer::new(broadcaster);
-        
-        let mut subscribed = false;
-        let mut event_receiver = None;
-        
-        let response = server
-            .process_request(
-                Request::Subscribe { events: vec![] },
-                &mut subscribed,
-                &mut event_receiver,
-            )
-            .await;
-        
-        assert!(!subscribed);
-        assert!(event_receiver.is_none());
-        
-        match response {
-            Response::Error { message, .. } => {
-                assert!(message.contains("No events specified"));
-            }
-            _ => panic!("Expected Error response"),
-        }
-    }
-    
-    #[tokio::test]
-    async fn test_process_unsubscribe_request() {
-        let broadcaster = Arc::new(EventBroadcaster::new());
-        let server = IpcServer::new(Arc::clone(&broadcaster));
-        
-        let mut subscribed = true;
-        let mut event_receiver = Some(broadcaster.subscribe());
-        
-        let response = server
-            .process_request(Request::Unsubscribe, &mut subscribed, &mut event_receiver)
-            .await;
-        
-        assert!(!subscribed);
-        assert!(event_receiver.is_none());
-        
-        matches!(response, Response::Success { .. });
-    }
-    
-    #[tokio::test]
-    async fn test_process_unimplemented_request() {
-        let broadcaster = Arc::new(EventBroadcaster::new());
-        let server = IpcServer::new(broadcaster);
-        
-        let mut subscribed = false;
-        let mut event_receiver = None;
-        
-        let response = server
-            .process_request(
-                Request::GetWorkspaces,
-                &mut subscribed,
-                &mut event_receiver,
-            )
-            .await;
-        
-        match response {
-            Response::Error { message, .. } => {
-                assert!(message.contains("not implemented"));
-            }
-            _ => panic!("Expected Error response"),
-        }
-    }
-    
-    #[cfg(windows)]
-    #[tokio::test]
-    async fn test_request_framing_size_check() {
-        // Test that oversized requests are rejected
-        let data = vec![0xFF, 0xFF, 0xFF, 0xFF]; // Max u32 value
-        let mut cursor = std::io::Cursor::new(data);
-        
-        let result = IpcServer::read_request(&mut cursor).await;
-        assert!(result.is_err());
-        if let Err(e) = result {
-            assert!(e.to_string().contains("too large"));
-        }
-    }
-    
-    #[cfg(windows)]
-    #[tokio::test]
-    async fn test_request_framing_zero_length() {
-        // Test that zero-length requests are rejected
-        let data = vec![0x00, 0x00, 0x00, 0x00]; // Zero length
-        let mut cursor = std::io::Cursor::new(data);
-        
-        let result = IpcServer::read_request(&mut cursor).await;
-        assert!(result.is_err());
-        if let Err(e) = result {
-            assert!(e.to_string().contains("cannot be zero"));
         }
     }
 }

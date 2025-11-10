@@ -10,5 +10,4 @@
 pub mod matcher;
 pub mod executor;
 
-pub use matcher::{RuleMatcher, CompiledRule, RuleMatch};
-pub use executor::RuleExecutor;
+pub use matcher::RuleMatcher;

@@ -16,7 +16,7 @@ This directory contains example scripts demonstrating how to interact with the T
 cargo install --path crates/cli
 
 # Or build in debug mode
-cargo build --package tiling-wm-cli
+cargo build --package tenrakuctl
 
 # The binary will be named 'twm' (Tiling Window Manager)
 ```
@@ -139,105 +139,105 @@ python examples/ipc/python/auto_tiler.py
 
 ```bash
 # Get all windows
-twm windows
+tenrakuctl windows
 
 # Get windows in specific workspace
-twm windows --workspace 1
+tenrakuctl windows --workspace 1
 
 # Get active window
-twm active-window
+tenrakuctl active-window
 
 # List all workspaces
-twm workspaces
+tenrakuctl workspaces
 
 # List monitors
-twm monitors
+tenrakuctl monitors
 
 # Get configuration info
-twm config
+tenrakuctl config
 
 # Get version information
-twm version
+tenrakuctl version
 ```
 
 ### Window Operations
 
 ```bash
 # Close active window
-twm close
+tenrakuctl close
 
 # Close specific window
-twm close --window 12345
+tenrakuctl close --window 12345
 
 # Focus a window
-twm focus 12345
+tenrakuctl focus 12345
 
 # Move window to workspace 2
-twm move 12345 2
+tenrakuctl move 12345 2
 
 # Toggle floating for active window
-twm toggle-float
+tenrakuctl toggle-float
 
 # Toggle fullscreen for active window
-twm toggle-fullscreen
+tenrakuctl toggle-fullscreen
 ```
 
 ### Workspace Operations
 
 ```bash
 # Switch to workspace 3
-twm workspace 3
+tenrakuctl workspace 3
 
 # Create new workspace
-twm create-workspace "Development" --monitor 0
+tenrakuctl create-workspace "Development" --monitor 0
 
 # Rename workspace
-twm rename-workspace 1 "Main"
+tenrakuctl rename-workspace 1 "Main"
 
 # Delete workspace
-twm delete-workspace 5
+tenrakuctl delete-workspace 5
 ```
 
 ### Layout Commands
 
 ```bash
 # Set layout
-twm layout dwindle
-twm layout master
+tenrakuctl layout dwindle
+tenrakuctl layout master
 
 # Adjust master factor
-twm exec master-factor 0.05
-twm exec master-factor -0.05
+tenrakuctl exec master-factor 0.05
+tenrakuctl exec master-factor -0.05
 
 # Change master count
-twm exec increase-master
-twm exec decrease-master
+tenrakuctl exec increase-master
+tenrakuctl exec decrease-master
 ```
 
 ### System Commands
 
 ```bash
 # Reload configuration
-twm reload
+tenrakuctl reload
 
 # Ping the server (health check)
-twm ping
+tenrakuctl ping
 ```
 
 ### Event Subscription
 
 ```bash
 # Listen to all events (JSON format)
-twm --format json listen --events window_created,workspace_changed
+tenrakuctl --format json listen --events window_created,workspace_changed
 
 # Monitor specific events
-twm listen --events window_created,window_closed,window_focused
+tenrakuctl listen --events window_created,window_closed,window_focused
 
 # Monitor workspace changes
-twm listen --events workspace_changed,workspace_created,workspace_deleted
+tenrakuctl listen --events workspace_changed,workspace_created,workspace_deleted
 
 # Monitor configuration changes
-twm listen --events config_reloaded,layout_changed
+tenrakuctl listen --events config_reloaded,layout_changed
 ```
 
 ## Output Formats
@@ -247,7 +247,7 @@ The CLI supports three output formats:
 ### 1. Table Format (Default)
 
 ```bash
-twm workspaces
+tenrakuctl workspaces
 ```
 
 Produces a formatted table with borders and colored output.
@@ -255,7 +255,7 @@ Produces a formatted table with borders and colored output.
 ### 2. JSON Format
 
 ```bash
-twm --format json workspaces
+tenrakuctl --format json workspaces
 ```
 
 Produces machine-readable JSON output, perfect for scripting.
@@ -263,7 +263,7 @@ Produces machine-readable JSON output, perfect for scripting.
 ### 3. Compact Format
 
 ```bash
-twm --format compact workspaces
+tenrakuctl --format compact workspaces
 ```
 
 Produces minimal output for piping or simple scripts.
@@ -293,7 +293,7 @@ Available event types for subscription:
 
 try {
     # Get data in JSON format
-    $result = & twm --format json <command> 2>&1
+    $result = & tenrakuctl --format json <command> 2>&1
     
     if ($LASTEXITCODE -ne 0) {
         Write-Host "Error: $result" -ForegroundColor Red
@@ -348,7 +348,7 @@ except Exception as e:
 
 ```bash
 # Make sure the CLI tool is built and in PATH
-cargo build --package tiling-wm-cli
+cargo build --package tenrakuctl
 
 # Or install it globally
 cargo install --path crates/cli
@@ -358,23 +358,23 @@ cargo install --path crates/cli
 
 ```bash
 # Verify the window manager is running
-twm ping
+tenrakuctl ping
 
 # Check if the named pipe exists (Windows)
-# The default pipe is: \\.\pipe\tiling-wm
+# The default pipe is: \\\\.\\pipe\\tenraku
 
 # If using a custom pipe name, specify it:
-twm --pipe \\.\pipe\custom-name <command>
+tenrakuctl --pipe \\.\pipe\custom-name <command>
 ```
 
 ### JSON Parsing Errors
 
 ```bash
 # Ensure you're using JSON format for scripting
-twm --format json <command>
+tenrakuctl --format json <command>
 
 # Check the output manually first
-twm --format json workspaces | jq .
+tenrakuctl --format json workspaces | jq .
 ```
 
 ## Security Considerations
@@ -390,15 +390,15 @@ twm --format json workspaces | jq .
 
 ```bash
 # Get active window and move it to workspace 2
-$hwnd = (twm --format json active-window | ConvertFrom-Json).data.hwnd
-twm move $hwnd 2
+$hwnd = (tenrakuctl --format json active-window | ConvertFrom-Json).data.hwnd
+tenrakuctl move $hwnd 2
 ```
 
 ### Monitoring and Automation
 
 ```bash
 # Monitor events and trigger actions
-twm listen --events workspace_changed | ForEach-Object {
+tenrakuctl listen --events workspace_changed | ForEach-Object {
     $event = $_ | ConvertFrom-Json
     Write-Host "Switched from workspace $($event.data.from) to $($event.data.to)"
     # Trigger custom action...
@@ -409,10 +409,10 @@ twm listen --events workspace_changed | ForEach-Object {
 
 ```bash
 # Use with jq for JSON processing
-twm --format json workspaces | jq '.data[] | select(.active == true)'
+tenrakuctl --format json workspaces | jq '.data[] | select(.active == true)'
 
 # Use with fzf for interactive selection
-twm --format json windows | jq -r '.data[] | "\(.hwnd): \(.title)"' | fzf
+tenrakuctl --format json windows | jq -r '.data[] | "\(.hwnd): \(.title)"' | fzf
 ```
 
 ## Contributing

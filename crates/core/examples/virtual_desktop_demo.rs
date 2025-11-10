@@ -8,7 +8,7 @@
 //! Note: This example only works on Windows 10/11 with Virtual Desktop support.
 
 #[cfg(target_os = "windows")]
-use tiling_wm_core::workspace::VirtualDesktopManager;
+use tenraku_core::workspace::VirtualDesktopManager;
 
 #[cfg(target_os = "windows")]
 fn main() -> anyhow::Result<()> {

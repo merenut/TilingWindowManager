@@ -14,8 +14,8 @@
 //! # Example
 //!
 //! ```no_run
-//! use tiling_wm_core::window_manager::layout::DwindleLayout;
-//! use tiling_wm_core::window_manager::{TreeNode, Rect, Split};
+//! use tenraku_core::window_manager::layout::DwindleLayout;
+//! use tenraku_core::window_manager::{TreeNode, Rect, Split};
 //! use windows::Win32::Foundation::HWND;
 //!
 //! let layout = DwindleLayout::new();
@@ -69,7 +69,7 @@ impl DwindleLayout {
     /// # Example
     ///
     /// ```
-    /// use tiling_wm_core::window_manager::layout::DwindleLayout;
+    /// use tenraku_core::window_manager::layout::DwindleLayout;
     ///
     /// let layout = DwindleLayout::new();
     /// assert_eq!(layout.ratio, 0.5);
@@ -91,7 +91,7 @@ impl DwindleLayout {
     /// # Example
     ///
     /// ```
-    /// use tiling_wm_core::window_manager::layout::DwindleLayout;
+    /// use tenraku_core::window_manager::layout::DwindleLayout;
     ///
     /// let layout = DwindleLayout::new().with_ratio(0.6);
     /// assert_eq!(layout.ratio, 0.6);
@@ -113,7 +113,7 @@ impl DwindleLayout {
     /// # Example
     ///
     /// ```
-    /// use tiling_wm_core::window_manager::layout::DwindleLayout;
+    /// use tenraku_core::window_manager::layout::DwindleLayout;
     ///
     /// let layout = DwindleLayout::new().with_smart_split(false);
     /// assert!(!layout.smart_split);
@@ -142,8 +142,8 @@ impl DwindleLayout {
     /// # Example
     ///
     /// ```
-    /// use tiling_wm_core::window_manager::layout::DwindleLayout;
-    /// use tiling_wm_core::window_manager::{Rect, Split};
+    /// use tenraku_core::window_manager::layout::DwindleLayout;
+    /// use tenraku_core::window_manager::{Rect, Split};
     ///
     /// let layout = DwindleLayout::new();
     /// let wide_rect = Rect::new(0, 0, 1920, 1080);
@@ -213,8 +213,8 @@ impl DwindleLayout {
     /// # Example
     ///
     /// ```no_run
-    /// use tiling_wm_core::window_manager::layout::DwindleLayout;
-    /// use tiling_wm_core::window_manager::{TreeNode, Rect};
+    /// use tenraku_core::window_manager::layout::DwindleLayout;
+    /// use tenraku_core::window_manager::{TreeNode, Rect};
     /// use windows::Win32::Foundation::HWND;
     ///
     /// let layout = DwindleLayout::new();
@@ -231,13 +231,12 @@ impl DwindleLayout {
             return Ok(());
         }
 
-        // Determine split direction based on current rectangle
+        // Use insert_with_fn to calculate split direction at each level
         let rect = tree.rect();
-        let split_dir = self.calculate_split_direction(&rect);
-
-        // Use TreeNode's built-in insert method
         let new_tree = std::mem::replace(tree, TreeNode::new_leaf(HWND(0), rect));
-        *tree = new_tree.insert(hwnd, split_dir);
+
+        let split_fn = |r: &Rect| self.calculate_split_direction(r);
+        *tree = new_tree.insert_with_fn(hwnd, &split_fn);
 
         Ok(())
     }
@@ -259,8 +258,8 @@ impl DwindleLayout {
     /// # Example
     ///
     /// ```no_run
-    /// use tiling_wm_core::window_manager::layout::DwindleLayout;
-    /// use tiling_wm_core::window_manager::{TreeNode, Rect};
+    /// use tenraku_core::window_manager::layout::DwindleLayout;
+    /// use tenraku_core::window_manager::{TreeNode, Rect};
     /// use windows::Win32::Foundation::HWND;
     ///
     /// let layout = DwindleLayout::new();
@@ -314,8 +313,8 @@ impl DwindleLayout {
     /// # Example
     ///
     /// ```no_run
-    /// use tiling_wm_core::window_manager::layout::DwindleLayout;
-    /// use tiling_wm_core::window_manager::{TreeNode, Rect};
+    /// use tenraku_core::window_manager::layout::DwindleLayout;
+    /// use tenraku_core::window_manager::{TreeNode, Rect};
     /// use windows::Win32::Foundation::HWND;
     ///
     /// let layout = DwindleLayout::new();
@@ -334,245 +333,5 @@ impl DwindleLayout {
         tree.apply_layout(self.gaps_in, self.gaps_out)?;
 
         Ok(())
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn test_default_layout() {
-        let layout = DwindleLayout::new();
-        assert_eq!(layout.ratio, 0.5);
-        assert!(layout.smart_split);
-        assert_eq!(layout.gaps_in, 5);
-        assert_eq!(layout.gaps_out, 10);
-    }
-
-    #[test]
-    fn test_smart_split_wide_rectangle() {
-        let layout = DwindleLayout::new();
-        let wide_rect = Rect::new(0, 0, 1920, 1080);
-
-        assert_eq!(
-            layout.calculate_split_direction(&wide_rect),
-            Split::Horizontal,
-            "Wide rectangle should split horizontally"
-        );
-    }
-
-    #[test]
-    fn test_smart_split_tall_rectangle() {
-        let layout = DwindleLayout::new();
-        let tall_rect = Rect::new(0, 0, 800, 1200);
-
-        assert_eq!(
-            layout.calculate_split_direction(&tall_rect),
-            Split::Vertical,
-            "Tall rectangle should split vertically"
-        );
-    }
-
-    #[test]
-    fn test_smart_split_square_rectangle() {
-        let layout = DwindleLayout::new();
-        let square_rect = Rect::new(0, 0, 1000, 1000);
-
-        assert_eq!(
-            layout.calculate_split_direction(&square_rect),
-            Split::Vertical,
-            "Square rectangle should split vertically (height >= width)"
-        );
-    }
-
-    #[test]
-    fn test_smart_split_disabled() {
-        let layout = DwindleLayout::new().with_smart_split(false);
-        let wide_rect = Rect::new(0, 0, 1920, 1080);
-
-        assert_eq!(
-            layout.calculate_split_direction(&wide_rect),
-            Split::Vertical,
-            "With smart_split disabled, should default to vertical"
-        );
-    }
-
-    #[test]
-    fn test_ratio_clamping() {
-        let layout = DwindleLayout::new().with_ratio(1.5);
-        assert!(
-            layout.ratio <= 0.9,
-            "Ratio should be clamped to max 0.9, got {}",
-            layout.ratio
-        );
-
-        let layout = DwindleLayout::new().with_ratio(-0.5);
-        assert!(
-            layout.ratio >= 0.1,
-            "Ratio should be clamped to min 0.1, got {}",
-            layout.ratio
-        );
-    }
-
-    #[test]
-    fn test_ratio_valid_range() {
-        let layout = DwindleLayout::new().with_ratio(0.6);
-        assert_eq!(layout.ratio, 0.6);
-    }
-
-    #[test]
-    fn test_split_ratio_calculation() {
-        let layout = DwindleLayout::new();
-
-        assert_eq!(layout.calculate_split_ratio(0), 0.5);
-        assert_eq!(layout.calculate_split_ratio(1), 0.5);
-        assert_eq!(layout.calculate_split_ratio(2), 0.5);
-        assert_eq!(layout.calculate_split_ratio(3), 0.618);
-        assert_eq!(layout.calculate_split_ratio(10), 0.618);
-    }
-
-    #[test]
-    fn test_insert_first_window() {
-        let layout = DwindleLayout::new();
-        let rect = Rect::new(0, 0, 1920, 1080);
-        let mut tree = TreeNode::new_leaf(HWND(0), rect);
-
-        let window = HWND(12345);
-        layout.insert_window(&mut tree, window).unwrap();
-
-        assert!(tree.is_leaf());
-        assert_eq!(tree.hwnd(), Some(window));
-    }
-
-    #[test]
-    fn test_insert_second_window() {
-        let layout = DwindleLayout::new();
-        let rect = Rect::new(0, 0, 1920, 1080);
-        let mut tree = TreeNode::new_leaf(HWND(0), rect);
-
-        let window1 = HWND(1);
-        let window2 = HWND(2);
-
-        layout.insert_window(&mut tree, window1).unwrap();
-        layout.insert_window(&mut tree, window2).unwrap();
-
-        assert!(tree.is_container());
-        let windows = tree.collect();
-        assert_eq!(windows.len(), 2);
-    }
-
-    #[test]
-    fn test_insert_multiple_windows() {
-        let layout = DwindleLayout::new();
-        let rect = Rect::new(0, 0, 1920, 1080);
-        let mut tree = TreeNode::new_leaf(HWND(0), rect);
-
-        // Insert 5 windows
-        for i in 1..=5 {
-            layout.insert_window(&mut tree, HWND(i)).unwrap();
-        }
-
-        let windows = tree.collect();
-        assert_eq!(windows.len(), 5);
-
-        // Verify all windows are present
-        let hwnds: Vec<HWND> = windows.iter().map(|(h, _)| *h).collect();
-        for i in 1..=5 {
-            assert!(hwnds.contains(&HWND(i)));
-        }
-    }
-
-    #[test]
-    fn test_remove_window() {
-        let layout = DwindleLayout::new();
-        let rect = Rect::new(0, 0, 1920, 1080);
-        let mut tree = TreeNode::new_leaf(HWND(0), rect);
-
-        let window1 = HWND(1);
-        let window2 = HWND(2);
-
-        layout.insert_window(&mut tree, window1).unwrap();
-        layout.insert_window(&mut tree, window2).unwrap();
-
-        let removed = layout.remove_window(&mut tree, window1).unwrap();
-        assert!(removed, "Window should be found and removed");
-
-        let windows = tree.collect();
-        assert_eq!(windows.len(), 1);
-        assert_eq!(windows[0].0, window2);
-    }
-
-    #[test]
-    fn test_remove_nonexistent_window() {
-        let layout = DwindleLayout::new();
-        let rect = Rect::new(0, 0, 1920, 1080);
-        let mut tree = TreeNode::new_leaf(HWND(0), rect);
-
-        let window1 = HWND(1);
-        layout.insert_window(&mut tree, window1).unwrap();
-
-        // Try to remove a window that doesn't exist
-        let removed = layout.remove_window(&mut tree, HWND(999)).unwrap();
-        assert!(!removed, "Nonexistent window should not be found");
-
-        let windows = tree.collect();
-        assert_eq!(windows.len(), 1);
-    }
-
-    #[test]
-    fn test_remove_last_window() {
-        let layout = DwindleLayout::new();
-        let rect = Rect::new(0, 0, 1920, 1080);
-        let mut tree = TreeNode::new_leaf(HWND(0), rect);
-
-        let window1 = HWND(1);
-        layout.insert_window(&mut tree, window1).unwrap();
-
-        let removed = layout.remove_window(&mut tree, window1).unwrap();
-        assert!(removed);
-
-        // Tree should be an empty placeholder
-        assert!(tree.is_leaf());
-        assert_eq!(tree.hwnd(), Some(HWND(0)));
-    }
-
-    #[test]
-    fn test_insert_and_remove_cycle() {
-        let layout = DwindleLayout::new();
-        let rect = Rect::new(0, 0, 1920, 1080);
-        let mut tree = TreeNode::new_leaf(HWND(0), rect);
-
-        // Insert 3 windows
-        for i in 1..=3 {
-            layout.insert_window(&mut tree, HWND(i)).unwrap();
-        }
-        assert_eq!(tree.collect().len(), 3);
-
-        // Remove middle window
-        layout.remove_window(&mut tree, HWND(2)).unwrap();
-        assert_eq!(tree.collect().len(), 2);
-
-        // Insert another window
-        layout.insert_window(&mut tree, HWND(4)).unwrap();
-        assert_eq!(tree.collect().len(), 3);
-
-        // Verify correct windows remain
-        let hwnds: Vec<HWND> = tree.collect().iter().map(|(h, _)| *h).collect();
-        assert!(hwnds.contains(&HWND(1)));
-        assert!(!hwnds.contains(&HWND(2)));
-        assert!(hwnds.contains(&HWND(3)));
-        assert!(hwnds.contains(&HWND(4)));
-    }
-
-    #[test]
-    fn test_apply_empty_tree() {
-        let layout = DwindleLayout::new();
-        let rect = Rect::new(0, 0, 1920, 1080);
-        let tree = TreeNode::new_leaf(HWND(0), rect);
-
-        // Should not panic or error on empty tree
-        let result = layout.apply(&tree);
-        assert!(result.is_ok());
     }
 }

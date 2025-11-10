@@ -1,0 +1,4 @@
+    Finished `dev` profile [unoptimized + debuginfo] target(s) in 0.98s
+     Running `target\debug\tenraku-bar.exe`
+[2m2025-11-07T18:15:46.918796Z[0m [32m INFO[0m Starting Tenraku Status Bar
+[2m2025-11-07T18:15:46.923447Z[0m [32m INFO[0m Loaded status bar configuration

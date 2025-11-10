@@ -25,7 +25,7 @@ struct Cli {
     format: OutputFormat,
 
     /// Named pipe path
-    #[arg(long, default_value = r"\\.\pipe\tiling-wm")]
+    #[arg(long, default_value = r"\\.\pipe\tenraku")]
     pipe: String,
 
     #[command(subcommand)]
@@ -177,9 +177,10 @@ fn main() -> Result<()> {
     #[cfg(windows)]
     {
         let cli = Cli::parse();
-        
+
         // Connect to named pipe
-        let mut client = connect_to_pipe(&cli.pipe).context("Failed to connect to window manager. Is it running?")?;
+        let mut client = connect_to_pipe(&cli.pipe)
+            .context("Failed to connect to window manager. Is it running?")?;
 
         // Build request
         let request = build_request(&cli.command)?;
@@ -211,7 +212,7 @@ fn main() -> Result<()> {
 fn connect_to_pipe(pipe_path: &str) -> Result<std::fs::File> {
     // Windows-specific constant for FILE_FLAG_OVERLAPPED
     const FILE_FLAG_OVERLAPPED: u32 = 0x40000000;
-    
+
     OpenOptions::new()
         .read(true)
         .write(true)
@@ -425,7 +426,11 @@ fn print_table(response: &Value) {
                                     print_monitor_table(arr);
                                 } else {
                                     // Generic array
-                                    println!("{}: {}", "Success".green(), serde_json::to_string_pretty(data).unwrap());
+                                    println!(
+                                        "{}: {}",
+                                        "Success".green(),
+                                        serde_json::to_string_pretty(data).unwrap()
+                                    );
                                 }
                             }
                         } else {
@@ -459,7 +464,12 @@ fn print_table(response: &Value) {
                     .and_then(|n| n.as_str())
                     .unwrap_or("unknown");
                 let data = response.get("data").unwrap_or(&Value::Null);
-                println!("{} {}: {}", "Event".cyan(), name.bright_cyan(), format_value(data));
+                println!(
+                    "{} {}: {}",
+                    "Event".cyan(),
+                    name.bright_cyan(),
+                    format_value(data)
+                );
             }
             "pong" => {
                 println!("{}", "Pong".green());
@@ -506,7 +516,7 @@ fn print_workspace_table(workspaces: &[Value]) {
 #[cfg(windows)]
 fn print_window_table(windows: &[Value]) {
     const MAX_TITLE_LENGTH: usize = 40;
-    
+
     let mut table = Table::new();
     table
         .load_preset(UTF8_FULL)
@@ -519,9 +529,12 @@ fn print_window_table(windows: &[Value]) {
             win.get("workspace").and_then(|v| v.as_u64()),
             win.get("state").and_then(|v| v.as_str()),
         ) {
-            let focused = win.get("focused").and_then(|v| v.as_bool()).unwrap_or(false);
+            let focused = win
+                .get("focused")
+                .and_then(|v| v.as_bool())
+                .unwrap_or(false);
             let title_truncated: String = title.chars().take(MAX_TITLE_LENGTH).collect();
-            
+
             table.add_row(vec![
                 hwnd.to_string(),
                 title_truncated,
@@ -542,9 +555,14 @@ fn print_window_table(windows: &[Value]) {
 #[cfg(windows)]
 fn print_monitor_table(monitors: &[Value]) {
     let mut table = Table::new();
-    table
-        .load_preset(UTF8_FULL)
-        .set_header(vec!["ID", "Name", "Resolution", "Position", "Scale", "Primary"]);
+    table.load_preset(UTF8_FULL).set_header(vec![
+        "ID",
+        "Name",
+        "Resolution",
+        "Position",
+        "Scale",
+        "Primary",
+    ]);
 
     for mon in monitors {
         if let (Some(id), Some(name), Some(width), Some(height), Some(x), Some(y), Some(scale)) = (
@@ -556,8 +574,11 @@ fn print_monitor_table(monitors: &[Value]) {
             mon.get("y").and_then(|v| v.as_i64()),
             mon.get("scale").and_then(|v| v.as_f64()),
         ) {
-            let primary = mon.get("primary").and_then(|v| v.as_bool()).unwrap_or(false);
-            
+            let primary = mon
+                .get("primary")
+                .and_then(|v| v.as_bool())
+                .unwrap_or(false);
+
             table.add_row(vec![
                 id.to_string(),
                 name.to_string(),
@@ -614,6 +635,8 @@ fn format_value(value: &Value) -> String {
         Value::Number(n) => n.to_string(),
         Value::Bool(b) => b.to_string(),
         Value::Null => "null".to_string(),
-        Value::Array(_) | Value::Object(_) => serde_json::to_string(value).unwrap_or_else(|_| "?".to_string()),
+        Value::Array(_) | Value::Object(_) => {
+            serde_json::to_string(value).unwrap_or_else(|_| "?".to_string())
+        }
     }
 }

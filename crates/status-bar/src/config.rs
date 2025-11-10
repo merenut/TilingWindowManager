@@ -8,7 +8,7 @@ use std::fs;
 use anyhow::{Result, Context};
 
 /// Main status bar configuration
-#[derive(Debug, Clone, Default, Serialize, Deserialize)]
+#[derive(Debug, Clone, Default, Serialize, Deserialize, PartialEq)]
 pub struct BarConfig {
     #[serde(default)]
     pub bar: BarSettings,
@@ -21,7 +21,7 @@ pub struct BarConfig {
 }
 
 /// Status bar positioning and appearance settings
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct BarSettings {
     /// Bar height in pixels
     #[serde(default = "default_height")]
@@ -52,7 +52,7 @@ pub enum BarPosition {
 }
 
 /// Global styling settings
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct StyleSettings {
     /// Background color (hex)
     #[serde(default = "default_background")]
@@ -80,7 +80,7 @@ pub struct StyleSettings {
 }
 
 /// Module positioning configuration
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct ModulesConfig {
     /// Modules on the left side
     #[serde(default = "default_left_modules")]

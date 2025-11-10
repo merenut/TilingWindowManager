@@ -7,7 +7,7 @@
 //! 
 //! Run with: cargo run --example validate_default_config
 
-use tiling_wm_core::config::schema::Config;
+use tenraku_core::config::schema::Config;
 use std::process;
 
 fn main() {

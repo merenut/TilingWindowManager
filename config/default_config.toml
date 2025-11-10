@@ -183,6 +183,12 @@ actions = ["float"]
 match_class = ".*Popup.*"
 actions = ["no_manage"]
 
+# Don't manage the command palette
+# The command palette should remain as an overlay
+[[window_rules]]
+match_title = "Tenraku Command Palette"
+actions = ["no_manage"]
+
 # Set opacity for specific windows
 # Discord benefits from slight transparency
 [[window_rules]]
@@ -457,6 +463,13 @@ command = "move-to-workspace-5"
 
 # System Commands
 # ---------------
+
+# Show command palette
+# Opens an overlay to search and launch applications and Tenraku commands
+[[keybinds]]
+modifiers = ["Alt"]
+key = "p"
+command = "show-command-palette"
 
 # Reload configuration
 # Re-reads config file and applies changes without restart

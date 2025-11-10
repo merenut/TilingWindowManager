@@ -7,7 +7,7 @@ Write-Host "Monitoring window events (Ctrl+C to stop)..." -ForegroundColor Cyan
 $events = "window_created,window_closed,window_focused"
 
 try {
-    & twm listen --events $events | ForEach-Object {
+    & tenrakuctl listen --events $events | ForEach-Object {
         $event = $_ | ConvertFrom-Json
         
         $timestamp = Get-Date -Format "HH:mm:ss"

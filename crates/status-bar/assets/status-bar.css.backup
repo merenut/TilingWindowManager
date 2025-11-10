@@ -1,0 +1,224 @@
+/* Tenraku Status Bar - Catppuccin Mocha Theme */
+
+/* Root Variables - Catppuccin Mocha Palette */
+:root {
+    --base: #1e1e2e;
+    --mantle: #181825;
+    --crust: #11111b;
+
+    --text: #cdd6f4;
+    --subtext1: #bac2de;
+    --subtext0: #a6adc8;
+
+    --overlay2: #9399b2;
+    --overlay1: #7f849c;
+    --overlay0: #6c7086;
+
+    --surface2: #585b70;
+    --surface1: #45475a;
+    --surface0: #313244;
+
+    --blue: #89b4fa;
+    --lavender: #b4befe;
+    --sapphire: #74c7ec;
+    --sky: #89dceb;
+    --teal: #94e2d5;
+    --green: #a6e3a1;
+    --yellow: #f9e2af;
+    --peach: #fab387;
+    --maroon: #eba0ac;
+    --red: #f38ba8;
+    --mauve: #cba6f7;
+    --pink: #f5c2e7;
+    3 4 5 6 7 8 9 10 --flamingo: #f2cdcd;
+    --rosewater: #f5e0dc;
+}
+
+/* Base Styles */
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+html,
+body {
+    height: 100%;
+    width: 100%;
+    margin: 0;
+    padding: 0;
+    overflow: hidden;
+}
+
+body {
+    font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+    font-size: 12px;
+    color: var(--text);
+    background-color: var(--base);
+}
+
+/* Status Bar Container */
+.status-bar {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    height: 100%;
+    width: 100%;
+    padding: 0 12px;
+    background-color: var(--base);
+}
+
+/* Module Sections */
+.modules-left {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+}
+
+.modules-center {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+    flex-grow: 1;
+    justify-content: center;
+}
+
+.modules-right {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+}
+
+/* Base Module Styling */
+.module {
+    display: flex;
+    align-items: center;
+    padding: 4px 10px;
+    border-radius: 4px;
+    transition: background-color 0.2s ease;
+}
+
+.module:hover {
+    background-color: var(--surface0);
+}
+
+/* Clock Module */
+.module-clock {
+    color: var(--text);
+}
+
+/* CPU Module */
+.module-cpu {
+    color: var(--blue);
+}
+
+.module-cpu.warning {
+    color: var(--yellow);
+}
+
+.module-cpu.critical {
+    color: var(--red);
+}
+
+/* Memory Module */
+.module-memory {
+    color: var(--green);
+}
+
+.module-memory.warning {
+    color: var(--yellow);
+}
+
+.module-memory.critical {
+    color: var(--red);
+}
+
+/* Battery Module */
+.module-battery {
+    color: var(--text);
+}
+
+.module-battery.charging {
+    color: var(--green);
+}
+
+.module-battery.warning {
+    color: var(--yellow);
+}
+
+.module-battery.critical {
+    color: var(--red);
+}
+
+/* Workspaces Module */
+.module-workspaces {
+    display: flex;
+    gap: 4px;
+    padding: 0;
+}
+
+.workspace-button {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 24px;
+    height: 24px;
+    padding: 0 8px;
+    border: none;
+    border-radius: 4px;
+    background-color: transparent;
+    color: var(--surface2);
+    font-size: 11px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.workspace-button:hover {
+    background-color: var(--surface0);
+    color: var(--overlay2);
+}
+
+.workspace-button-active {
+    background-color: var(--blue);
+    color: var(--base);
+}
+
+.workspace-button-active:hover {
+    background-color: var(--lavender);
+}
+
+.workspace-button-occupied {
+    color: var(--overlay1);
+}
+
+/* Window Title Module */
+.module-window-title {
+    color: var(--subtext1);
+    font-style: italic;
+    max-width: 400px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.module-window-title.empty {
+    color: var(--surface2);
+}
+
+/* Icon Spacing */
+.module-icon {
+    margin-right: 6px;
+}
+
+/* Utility Classes */
+.separator {
+    width: 1px;
+    height: 16px;
+    background-color: var(--surface1);
+    margin: 0 4px;
+}
+
+.hidden {
+    display: none;
+}

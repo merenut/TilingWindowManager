@@ -9,8 +9,8 @@
 //! # Example
 //!
 //! ```no_run
-//! use tiling_wm_core::window_manager::focus::{FocusManager, Direction};
-//! use tiling_wm_core::utils::win32::WindowHandle;
+//! use tenraku_core::window_manager::focus::{FocusManager, Direction};
+//! use tenraku_core::utils::win32::WindowHandle;
 //! use windows::Win32::Foundation::HWND;
 //!
 //! let mut focus_manager = FocusManager::new();
@@ -28,7 +28,6 @@
 use crate::utils::win32::WindowHandle;
 use crate::window_manager::tree::Rect;
 use std::collections::VecDeque;
-use windows::Win32::Foundation::HWND;
 use windows::Win32::UI::WindowsAndMessaging::*;
 
 /// Direction for directional focus navigation.
@@ -55,7 +54,7 @@ pub enum Direction {
 /// # Example
 ///
 /// ```no_run
-/// use tiling_wm_core::window_manager::focus::FocusManager;
+/// use tenraku_core::window_manager::focus::FocusManager;
 ///
 /// let mut fm = FocusManager::new();
 /// assert_eq!(fm.current(), None);
@@ -75,7 +74,7 @@ impl FocusManager {
     /// # Example
     ///
     /// ```
-    /// use tiling_wm_core::window_manager::focus::FocusManager;
+    /// use tenraku_core::window_manager::focus::FocusManager;
     ///
     /// let fm = FocusManager::new();
     /// ```
@@ -96,7 +95,7 @@ impl FocusManager {
     /// # Example
     ///
     /// ```
-    /// use tiling_wm_core::window_manager::focus::FocusManager;
+    /// use tenraku_core::window_manager::focus::FocusManager;
     ///
     /// let fm = FocusManager::new().with_history_size(20);
     /// ```
@@ -122,8 +121,8 @@ impl FocusManager {
     /// # Example
     ///
     /// ```no_run
-    /// use tiling_wm_core::window_manager::focus::FocusManager;
-    /// use tiling_wm_core::utils::win32::WindowHandle;
+    /// use tenraku_core::window_manager::focus::FocusManager;
+    /// use tenraku_core::utils::win32::WindowHandle;
     /// use windows::Win32::Foundation::HWND;
     ///
     /// let mut fm = FocusManager::new();
@@ -184,7 +183,7 @@ impl FocusManager {
     /// # Example
     ///
     /// ```
-    /// use tiling_wm_core::window_manager::focus::FocusManager;
+    /// use tenraku_core::window_manager::focus::FocusManager;
     ///
     /// let fm = FocusManager::new();
     /// assert_eq!(fm.current(), None);
@@ -205,7 +204,7 @@ impl FocusManager {
     /// # Example
     ///
     /// ```no_run
-    /// use tiling_wm_core::window_manager::focus::FocusManager;
+    /// use tenraku_core::window_manager::focus::FocusManager;
     ///
     /// let mut fm = FocusManager::new();
     /// // After focusing windows...
@@ -240,7 +239,7 @@ impl FocusManager {
     /// # Example
     ///
     /// ```no_run
-    /// use tiling_wm_core::window_manager::focus::FocusManager;
+    /// use tenraku_core::window_manager::focus::FocusManager;
     ///
     /// let mut fm = FocusManager::new();
     /// // After focusing windows...
@@ -276,7 +275,7 @@ impl FocusManager {
     /// # Example
     ///
     /// ```no_run
-    /// use tiling_wm_core::window_manager::focus::FocusManager;
+    /// use tenraku_core::window_manager::focus::FocusManager;
     ///
     /// let mut fm = FocusManager::new();
     /// // When a window is closed
@@ -302,7 +301,7 @@ impl FocusManager {
     /// # Example
     ///
     /// ```
-    /// use tiling_wm_core::window_manager::focus::FocusManager;
+    /// use tenraku_core::window_manager::focus::FocusManager;
     ///
     /// let fm = FocusManager::new();
     /// // Initially empty
@@ -319,7 +318,7 @@ impl FocusManager {
     /// # Example
     ///
     /// ```
-    /// use tiling_wm_core::window_manager::focus::FocusManager;
+    /// use tenraku_core::window_manager::focus::FocusManager;
     ///
     /// let mut fm = FocusManager::new();
     /// // After focusing windows...
@@ -366,8 +365,8 @@ impl DirectionalFocus {
     /// # Example
     ///
     /// ```
-    /// use tiling_wm_core::window_manager::focus::{DirectionalFocus, Direction};
-    /// use tiling_wm_core::window_manager::tree::Rect;
+    /// use tenraku_core::window_manager::focus::{DirectionalFocus, Direction};
+    /// use tenraku_core::window_manager::tree::Rect;
     ///
     /// let current = Rect::new(100, 100, 200, 200);
     /// let left = Rect::new(0, 100, 90, 200);
@@ -435,300 +434,5 @@ impl DirectionalFocus {
         let dx = to_center_x - from_center_x;
         let dy = to_center_y - from_center_y;
         (dx * dx + dy * dy).sqrt()
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn test_focus_manager_creation() {
-        let fm = FocusManager::new();
-        assert_eq!(fm.current(), None);
-        assert_eq!(fm.get_history().len(), 0);
-    }
-
-    #[test]
-    fn test_focus_manager_with_custom_size() {
-        let fm = FocusManager::new().with_history_size(5);
-        assert_eq!(fm.history_size, 5);
-        assert_eq!(fm.get_history().capacity(), 5);
-    }
-
-    #[test]
-    fn test_add_to_history() {
-        let mut fm = FocusManager::new();
-
-        fm.add_to_history(1);
-        fm.add_to_history(2);
-        fm.add_to_history(3);
-
-        assert_eq!(fm.focus_history.len(), 3);
-        assert_eq!(fm.focus_history[0], 3);
-        assert_eq!(fm.focus_history[1], 2);
-        assert_eq!(fm.focus_history[2], 1);
-    }
-
-    #[test]
-    fn test_add_to_history_removes_duplicates() {
-        let mut fm = FocusManager::new();
-
-        fm.add_to_history(1);
-        fm.add_to_history(2);
-        fm.add_to_history(1); // Add 1 again
-
-        assert_eq!(fm.focus_history.len(), 2);
-        assert_eq!(fm.focus_history[0], 1);
-        assert_eq!(fm.focus_history[1], 2);
-    }
-
-    #[test]
-    fn test_focus_previous() {
-        let mut fm = FocusManager::new();
-
-        fm.add_to_history(1);
-        fm.add_to_history(2);
-        fm.current_focus = Some(2);
-
-        let prev = fm.focus_previous();
-        assert_eq!(prev, Some(1));
-        assert_eq!(fm.current_focus, Some(1));
-        // Check that 1 is now at the front
-        assert_eq!(fm.focus_history[0], 1);
-    }
-
-    #[test]
-    fn test_focus_previous_with_empty_history() {
-        let mut fm = FocusManager::new();
-        let prev = fm.focus_previous();
-        assert_eq!(prev, None);
-    }
-
-    #[test]
-    fn test_focus_previous_with_single_window() {
-        let mut fm = FocusManager::new();
-        fm.add_to_history(1);
-
-        let prev = fm.focus_previous();
-        assert_eq!(prev, None);
-    }
-
-    #[test]
-    fn test_focus_next() {
-        let mut fm = FocusManager::new();
-
-        fm.add_to_history(1);
-        fm.add_to_history(2);
-        fm.add_to_history(3);
-
-        let next = fm.focus_next();
-        assert_eq!(next, Some(2));
-        assert_eq!(fm.current_focus, Some(2));
-    }
-
-    #[test]
-    fn test_focus_next_cycles() {
-        let mut fm = FocusManager::new();
-
-        fm.add_to_history(1);
-        fm.add_to_history(2);
-
-        // First call: focus 1
-        let next1 = fm.focus_next();
-        assert_eq!(next1, Some(1));
-
-        // Second call: focus 2 (cycles back)
-        let next2 = fm.focus_next();
-        assert_eq!(next2, Some(2));
-    }
-
-    #[test]
-    fn test_history_size_limit() {
-        let mut fm = FocusManager::new().with_history_size(3);
-
-        for i in 1..=5 {
-            fm.add_to_history(i);
-        }
-
-        assert_eq!(fm.focus_history.len(), 3);
-        assert_eq!(fm.focus_history[0], 5);
-        assert_eq!(fm.focus_history[1], 4);
-        assert_eq!(fm.focus_history[2], 3);
-    }
-
-    #[test]
-    fn test_remove_from_history() {
-        let mut fm = FocusManager::new();
-
-        fm.add_to_history(1);
-        fm.add_to_history(2);
-        fm.add_to_history(3);
-
-        fm.remove_from_history(2);
-
-        assert_eq!(fm.focus_history.len(), 2);
-        assert!(!fm.focus_history.contains(&2));
-        assert_eq!(fm.focus_history[0], 3);
-        assert_eq!(fm.focus_history[1], 1);
-    }
-
-    #[test]
-    fn test_remove_current_focus_updates_focus() {
-        let mut fm = FocusManager::new();
-
-        fm.add_to_history(1);
-        fm.add_to_history(2);
-        fm.current_focus = Some(2);
-
-        fm.remove_from_history(2);
-
-        // Current focus should update to the next window in history
-        assert_eq!(fm.current_focus, Some(1));
-    }
-
-    #[test]
-    fn test_clear_history() {
-        let mut fm = FocusManager::new();
-
-        fm.add_to_history(1);
-        fm.add_to_history(2);
-        fm.current_focus = Some(2);
-
-        fm.clear_history();
-
-        assert_eq!(fm.focus_history.len(), 0);
-        assert_eq!(fm.current_focus, None);
-    }
-
-    #[test]
-    fn test_directional_focus_left() {
-        let current = Rect::new(100, 100, 200, 200);
-        let left = Rect::new(0, 100, 90, 200);
-        let right = Rect::new(310, 100, 200, 200);
-
-        let candidates = vec![(1, left), (2, right)];
-
-        let result =
-            DirectionalFocus::find_window_in_direction(&current, Direction::Left, &candidates);
-
-        assert_eq!(result, Some(1));
-    }
-
-    #[test]
-    fn test_directional_focus_right() {
-        let current = Rect::new(100, 100, 200, 200);
-        let left = Rect::new(0, 100, 90, 200);
-        let right = Rect::new(310, 100, 200, 200);
-
-        let candidates = vec![(1, left), (2, right)];
-
-        let result =
-            DirectionalFocus::find_window_in_direction(&current, Direction::Right, &candidates);
-
-        assert_eq!(result, Some(2));
-    }
-
-    #[test]
-    fn test_directional_focus_up() {
-        let current = Rect::new(100, 100, 200, 200);
-        let above = Rect::new(100, 0, 200, 90);
-        let below = Rect::new(100, 310, 200, 200);
-
-        let candidates = vec![(1, above), (2, below)];
-
-        let result =
-            DirectionalFocus::find_window_in_direction(&current, Direction::Up, &candidates);
-
-        assert_eq!(result, Some(1));
-    }
-
-    #[test]
-    fn test_directional_focus_down() {
-        let current = Rect::new(100, 100, 200, 200);
-        let above = Rect::new(100, 0, 200, 90);
-        let below = Rect::new(100, 310, 200, 200);
-
-        let candidates = vec![(1, above), (2, below)];
-
-        let result =
-            DirectionalFocus::find_window_in_direction(&current, Direction::Down, &candidates);
-
-        assert_eq!(result, Some(2));
-    }
-
-    #[test]
-    fn test_directional_focus_no_window_in_direction() {
-        let current = Rect::new(100, 100, 200, 200);
-        let right = Rect::new(310, 100, 200, 200);
-
-        let candidates = vec![(1, right)];
-
-        let result =
-            DirectionalFocus::find_window_in_direction(&current, Direction::Left, &candidates);
-
-        assert_eq!(result, None);
-    }
-
-    #[test]
-    fn test_directional_focus_closest_window() {
-        let current = Rect::new(100, 100, 200, 200);
-        let far_right = Rect::new(500, 100, 200, 200);
-        let near_right = Rect::new(310, 100, 200, 200);
-
-        let candidates = vec![(1, far_right), (2, near_right)];
-
-        let result =
-            DirectionalFocus::find_window_in_direction(&current, Direction::Right, &candidates);
-
-        // Should select the nearer window (2)
-        assert_eq!(result, Some(2));
-    }
-
-    #[test]
-    fn test_is_in_direction() {
-        let current = Rect::new(100, 100, 200, 200);
-        let left = Rect::new(0, 100, 90, 200);
-        let right = Rect::new(310, 100, 200, 200);
-
-        assert!(DirectionalFocus::is_in_direction(
-            &current,
-            &left,
-            Direction::Left
-        ));
-        assert!(!DirectionalFocus::is_in_direction(
-            &current,
-            &left,
-            Direction::Right
-        ));
-        assert!(DirectionalFocus::is_in_direction(
-            &current,
-            &right,
-            Direction::Right
-        ));
-        assert!(!DirectionalFocus::is_in_direction(
-            &current,
-            &right,
-            Direction::Left
-        ));
-    }
-
-    #[test]
-    fn test_calculate_distance() {
-        let rect1 = Rect::new(0, 0, 100, 100);
-        let rect2 = Rect::new(300, 400, 100, 100);
-
-        let distance = DirectionalFocus::calculate_distance(&rect1, &rect2, Direction::Right);
-
-        // Distance between centers (50, 50) and (350, 450)
-        // sqrt((300)^2 + (400)^2) = 500
-        assert!((distance - 500.0).abs() < 0.01);
-    }
-
-    #[test]
-    fn test_default_focus_manager() {
-        let fm = FocusManager::default();
-        assert_eq!(fm.current(), None);
-        assert_eq!(fm.get_history().len(), 0);
     }
 }

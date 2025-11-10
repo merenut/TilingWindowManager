@@ -1,10 +1,10 @@
 [package]
-name = "tiling-wm-core"
+name = "tenraku-core"
 version = "0.1.0"
 edition = "2021"
 
 [[bin]]
-name = "tiling-wm-core"
+name = "tenraku"
 path = "src/main.rs"
 
 [dependencies]

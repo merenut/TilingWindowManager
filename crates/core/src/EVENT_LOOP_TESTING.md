@@ -50,7 +50,7 @@ For manual verification on Windows, you can create a simple example program:
 Create `crates/core/examples/event_loop_demo.rs`:
 
 ```rust
-use tiling_wm_core::event_loop::EventLoop;
+use tenraku_core::event_loop::EventLoop;
 use std::time::Duration;
 
 fn main() -> anyhow::Result<()> {
@@ -205,6 +205,12 @@ Expected performance on a typical Windows system:
 ## Future Enhancements
 
 Potential improvements for future iterations:
+
+- **Window show/hide animations**: Leverage `AnimateWindow` with the `AW_BLEND` flag (and directional flags when needed) to fade top-level windows in and out for quick visual feedback during focus changes or window toggles.
+- **Layered window fades**: Mark managed windows with `WS_EX_LAYERED` and drive opacity with `SetLayeredWindowAttributes` or per-frame alpha updates via `UpdateLayeredWindow` to enable gradual transparency transitions when hiding or minimizing tiles.
+- **DWM-driven effects**: Use `DwmSetWindowAttribute` for immersive dark title bars, `DwmEnableBlurBehindWindow` for glass highlights, and `DwmTransitionOwnedWindow` to coordinate animations between tool windows owned by the manager.
+- **Composition storyboards**: Adopt DirectComposition or the Win32 UI Animation Manager (available through the `windows` crate) to orchestrate time-based opacity/scale animations for focus swaps, workspace transitions, and stacked window rearrangements.
+- **Resilience & fallbacks**: Watch `DwmIsCompositionEnabled`/`WM_DWMCOMPOSITIONCHANGED` and fall back to instant show/hide when composition is unavailable; call `DwmFlush` after batched updates to keep animations in sync with the compositor.
 
 1. **Event Filtering**: Add filtering at hook level to reduce unnecessary events
 2. **Batch Processing**: Group events for more efficient processing

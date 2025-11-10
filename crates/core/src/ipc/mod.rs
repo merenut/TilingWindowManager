@@ -18,7 +18,7 @@
 //! # Example
 //!
 //! ```rust,no_run
-//! use tiling_wm_core::ipc::protocol::{Request, Response};
+//! use tenraku_core::ipc::protocol::{Request, Response};
 //!
 //! // Create a request
 //! let request = Request::GetWorkspaces;

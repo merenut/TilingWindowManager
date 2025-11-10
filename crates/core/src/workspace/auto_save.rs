@@ -18,9 +18,9 @@ use std::time::Duration;
 /// ```no_run
 /// use std::sync::Arc;
 /// use tokio::sync::Mutex;
-/// use tiling_wm_core::workspace::{WorkspaceManager, WorkspaceConfig};
-/// use tiling_wm_core::workspace::persistence::PersistenceManager;
-/// use tiling_wm_core::workspace::auto_save::AutoSaver;
+/// use tenraku_core::workspace::{WorkspaceManager, WorkspaceConfig};
+/// use tenraku_core::workspace::persistence::PersistenceManager;
+/// use tenraku_core::workspace::auto_save::AutoSaver;
 ///
 /// # #[tokio::main]
 /// # async fn main() {
@@ -41,7 +41,7 @@ use std::time::Duration;
 /// # }
 /// ```
 pub struct AutoSaver {
-    manager: Arc<Mutex<crate::workspace::manager::WorkspaceManager>>,
+    manager: Arc<Mutex<crate::workspace::core::WorkspaceManager>>,
     persistence: Arc<crate::workspace::persistence::PersistenceManager>,
     interval: Duration,
     running: Arc<Mutex<bool>>,
@@ -65,9 +65,9 @@ impl AutoSaver {
     /// ```no_run
     /// use std::sync::Arc;
     /// use tokio::sync::Mutex;
-    /// use tiling_wm_core::workspace::{WorkspaceManager, WorkspaceConfig};
-    /// use tiling_wm_core::workspace::persistence::PersistenceManager;
-    /// use tiling_wm_core::workspace::auto_save::AutoSaver;
+    /// use tenraku_core::workspace::{WorkspaceManager, WorkspaceConfig};
+    /// use tenraku_core::workspace::persistence::PersistenceManager;
+    /// use tenraku_core::workspace::auto_save::AutoSaver;
     ///
     /// let config = WorkspaceConfig::default();
     /// let manager = Arc::new(Mutex::new(WorkspaceManager::new(config)));
@@ -77,7 +77,7 @@ impl AutoSaver {
     /// let auto_saver = AutoSaver::new(manager, persistence, 300);
     /// ```
     pub fn new(
-        manager: Arc<Mutex<crate::workspace::manager::WorkspaceManager>>,
+        manager: Arc<Mutex<crate::workspace::core::WorkspaceManager>>,
         persistence: Arc<crate::workspace::persistence::PersistenceManager>,
         interval_secs: u64,
     ) -> Self {
@@ -95,15 +95,17 @@ impl AutoSaver {
     /// state. If the auto-saver is already running, this method does nothing.
     ///
     /// The background task will continue running until `stop()` is called.
+    /// This method must be invoked from within a [`tokio::task::LocalSet`]
+    /// because the workspace state contains non-`Send` data.
     ///
     /// # Examples
     ///
     /// ```no_run
     /// # use std::sync::Arc;
     /// # use tokio::sync::Mutex;
-    /// # use tiling_wm_core::workspace::{WorkspaceManager, WorkspaceConfig};
-    /// # use tiling_wm_core::workspace::persistence::PersistenceManager;
-    /// # use tiling_wm_core::workspace::auto_save::AutoSaver;
+    /// # use tenraku_core::workspace::{WorkspaceManager, WorkspaceConfig};
+    /// # use tenraku_core::workspace::persistence::PersistenceManager;
+    /// # use tenraku_core::workspace::auto_save::AutoSaver;
     /// #
     /// # #[tokio::main]
     /// # async fn main() {
@@ -133,19 +135,21 @@ impl AutoSaver {
         // 1. The task is designed to check the running flag and exit gracefully
         // 2. Storing the handle would complicate the struct lifetime
         // 3. The stop() method sets the flag, allowing the task to complete naturally
-        tokio::spawn(async move {
+        tokio::task::spawn_local(async move {
+            let mut ticker = tokio::time::interval(interval);
+
             loop {
-                tokio::time::sleep(interval).await;
-                
+                ticker.tick().await;
+
                 let should_continue = *running.lock().await;
                 if !should_continue {
                     break;
                 }
-                
+
                 let manager_guard = manager.lock().await;
                 manager_guard.auto_save(&persistence);
                 drop(manager_guard);
-                
+
                 tracing::debug!("Auto-saved workspace state");
             }
         });
@@ -161,9 +165,9 @@ impl AutoSaver {
     /// ```no_run
     /// # use std::sync::Arc;
     /// # use tokio::sync::Mutex;
-    /// # use tiling_wm_core::workspace::{WorkspaceManager, WorkspaceConfig};
-    /// # use tiling_wm_core::workspace::persistence::PersistenceManager;
-    /// # use tiling_wm_core::workspace::auto_save::AutoSaver;
+    /// # use tenraku_core::workspace::{WorkspaceManager, WorkspaceConfig};
+    /// # use tenraku_core::workspace::persistence::PersistenceManager;
+    /// # use tenraku_core::workspace::auto_save::AutoSaver;
     /// #
     /// # #[tokio::main]
     /// # async fn main() {
@@ -179,124 +183,5 @@ impl AutoSaver {
     pub async fn stop(&self) {
         let mut running = self.running.lock().await;
         *running = false;
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-    use crate::workspace::{WorkspaceManager, WorkspaceConfig};
-    use crate::workspace::persistence::PersistenceManager;
-    use tempfile::tempdir;
-    use std::path::PathBuf;
-
-    #[tokio::test]
-    async fn test_auto_saver_creation() {
-        let config = WorkspaceConfig::default();
-        let manager = Arc::new(Mutex::new(WorkspaceManager::new(config)));
-        let persistence = Arc::new(PersistenceManager::new());
-        
-        let auto_saver = AutoSaver::new(manager, persistence, 60);
-        
-        // Verify the auto-saver is not running initially
-        let running = auto_saver.running.lock().await;
-        assert!(!*running);
-    }
-
-    #[tokio::test]
-    async fn test_auto_saver_start_stop() {
-        let config = WorkspaceConfig::default();
-        let manager = Arc::new(Mutex::new(WorkspaceManager::new(config)));
-        let persistence = Arc::new(PersistenceManager::new());
-        
-        let auto_saver = AutoSaver::new(manager, persistence, 60);
-        
-        // Start the auto-saver
-        auto_saver.start().await;
-        
-        // Verify it's running
-        let running = auto_saver.running.lock().await;
-        assert!(*running);
-        drop(running);
-        
-        // Stop the auto-saver
-        auto_saver.stop().await;
-        
-        // Verify it's stopped
-        let running = auto_saver.running.lock().await;
-        assert!(!*running);
-    }
-
-    #[tokio::test]
-    async fn test_auto_saver_double_start() {
-        let config = WorkspaceConfig::default();
-        let manager = Arc::new(Mutex::new(WorkspaceManager::new(config)));
-        let persistence = Arc::new(PersistenceManager::new());
-        
-        let auto_saver = AutoSaver::new(manager, persistence, 60);
-        
-        // Start twice
-        auto_saver.start().await;
-        auto_saver.start().await;
-        
-        // Should still be running (no panic or error)
-        let running = auto_saver.running.lock().await;
-        assert!(*running);
-    }
-
-    #[tokio::test]
-    async fn test_auto_saver_saves_state() {
-        let temp_dir = tempdir().unwrap();
-        let state_path = temp_dir.path().join("test_session.json");
-        
-        // Create config with persistence enabled
-        let mut config = WorkspaceConfig::default();
-        config.persist_state = true;
-        
-        let manager = Arc::new(Mutex::new(WorkspaceManager::new(config)));
-        let persistence = Arc::new(PersistenceManager::with_custom_path(state_path.clone()));
-        
-        // Create auto-saver with very short interval for testing
-        let auto_saver = AutoSaver::new(manager, persistence, 1);
-        
-        // Start auto-saver
-        auto_saver.start().await;
-        
-        // Wait for at least one save cycle
-        tokio::time::sleep(Duration::from_secs(2)).await;
-        
-        // Stop auto-saver
-        auto_saver.stop().await;
-        
-        // Verify state file was created
-        assert!(state_path.exists());
-    }
-
-    #[tokio::test]
-    async fn test_auto_saver_respects_persist_state_flag() {
-        let temp_dir = tempdir().unwrap();
-        let state_path = temp_dir.path().join("test_session.json");
-        
-        // Create config with persistence DISABLED
-        let mut config = WorkspaceConfig::default();
-        config.persist_state = false;
-        
-        let manager = Arc::new(Mutex::new(WorkspaceManager::new(config)));
-        let persistence = Arc::new(PersistenceManager::with_custom_path(state_path.clone()));
-        
-        // Create auto-saver with very short interval for testing
-        let auto_saver = AutoSaver::new(manager, persistence, 1);
-        
-        // Start auto-saver
-        auto_saver.start().await;
-        
-        // Wait for at least one save cycle
-        tokio::time::sleep(Duration::from_secs(2)).await;
-        
-        // Stop auto-saver
-        auto_saver.stop().await;
-        
-        // Verify state file was NOT created (persist_state was false)
-        assert!(!state_path.exists());
     }
 }

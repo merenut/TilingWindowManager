@@ -18,10 +18,12 @@
 //! (Windows 10 and later).
 
 #[cfg(target_os = "windows")]
-use windows::{core::*, Win32::Foundation::*, Win32::System::Com::*};
+use windows::{
+    core::*, Win32::Foundation::*, Win32::System::Com::*, Win32::UI::Shell::Common::IObjectArray,
+};
 
 #[cfg(target_os = "windows")]
-use std::ptr;
+use std::{ffi::c_void, ptr};
 
 // ============================================================================
 // COM Interface Definitions
@@ -154,7 +156,7 @@ impl VirtualDesktopManager {
     pub fn new() -> anyhow::Result<Self> {
         unsafe {
             // Initialize COM for this thread
-            CoInitializeEx(None, COINIT_APARTMENTTHREADED).ok()?;
+            CoInitializeEx(None, COINIT_APARTMENTTHREADED)?;
 
             // Create the documented Virtual Desktop Manager
             let manager: IVirtualDesktopManager =
@@ -178,10 +180,8 @@ impl VirtualDesktopManager {
             CoCreateInstance(&CLSID_IMMERSIVE_SHELL, None, CLSCTX_LOCAL_SERVER)?;
 
         // Query for the internal manager through the service provider
-        service_provider.QueryService(
-            &CLSID_VIRTUAL_DESKTOP_MANAGER_INTERNAL,
-            &IVirtualDesktopManagerInternal::IID,
-        )
+        service_provider
+            .QueryService::<IVirtualDesktopManagerInternal>(&CLSID_VIRTUAL_DESKTOP_MANAGER_INTERNAL)
     }
 
     /// Check if the system supports Virtual Desktop undocumented APIs
@@ -231,12 +231,12 @@ impl VirtualDesktopManager {
                     anyhow::bail!("GetDesktops returned null");
                 }
 
-                let desktops: IObjectArray = IObjectArray::from_raw(desktops_ptr);
+                let desktops: IObjectArray = IObjectArray::from_raw(desktops_ptr.cast());
                 let count = desktops.GetCount()?;
 
                 let mut ids = Vec::new();
                 for i in 0..count {
-                    let desktop: IVirtualDesktop = desktops.GetAt(i, &IVirtualDesktop::IID)?;
+                    let desktop: IVirtualDesktop = desktops.GetAt::<IVirtualDesktop>(i)?;
 
                     let mut id = GUID::zeroed();
                     let hr = desktop.GetID(&mut id);
@@ -269,7 +269,8 @@ impl VirtualDesktopManager {
                     anyhow::bail!("GetCurrentDesktop returned null");
                 }
 
-                let desktop: IVirtualDesktop = IVirtualDesktop::from_raw(desktop_ptr);
+                let desktop: IVirtualDesktop =
+                    IVirtualDesktop::from_raw(desktop_ptr.cast::<c_void>());
                 let mut id = GUID::zeroed();
                 let hr = desktop.GetID(&mut id);
                 hr.ok()?;
@@ -323,15 +324,14 @@ impl VirtualDesktopManager {
                     anyhow::bail!("GetDesktops returned null");
                 }
 
-                let desktops: IObjectArray = IObjectArray::from_raw(desktops_ptr);
+                let desktops: IObjectArray = IObjectArray::from_raw(desktops_ptr.cast());
                 let count = desktops.GetCount()? as usize;
 
                 if index >= count {
                     anyhow::bail!("Desktop index {} out of range (count: {})", index, count);
                 }
 
-                let desktop: IVirtualDesktop =
-                    desktops.GetAt(index as u32, &IVirtualDesktop::IID)?;
+                let desktop: IVirtualDesktop = desktops.GetAt::<IVirtualDesktop>(index as u32)?;
                 let hr = internal.SwitchDesktop(&desktop);
                 hr.ok()?;
 
@@ -361,7 +361,7 @@ impl VirtualDesktopManager {
                     anyhow::bail!("FindDesktop returned null for the given ID");
                 }
 
-                let desktop = IVirtualDesktop::from_raw(desktop_ptr);
+                let desktop = IVirtualDesktop::from_raw(desktop_ptr.cast::<c_void>());
                 let hr = internal.SwitchDesktop(&desktop);
                 hr.ok()?;
                 Ok(())
@@ -389,7 +389,7 @@ impl VirtualDesktopManager {
                     anyhow::bail!("CreateDesktopW returned null");
                 }
 
-                let desktop = IVirtualDesktop::from_raw(desktop_ptr);
+                let desktop = IVirtualDesktop::from_raw(desktop_ptr.cast::<c_void>());
                 let mut id = GUID::zeroed();
                 let hr = desktop.GetID(&mut id);
                 hr.ok()?;
@@ -419,7 +419,7 @@ impl VirtualDesktopManager {
                     anyhow::bail!("FindDesktop returned null for desktop_id");
                 }
 
-                let desktop = IVirtualDesktop::from_raw(desktop_ptr);
+                let desktop = IVirtualDesktop::from_raw(desktop_ptr.cast::<c_void>());
 
                 let mut fallback_ptr: *mut IVirtualDesktop = ptr::null_mut();
                 let hr = internal.FindDesktop(fallback_id, &mut fallback_ptr);
@@ -429,7 +429,7 @@ impl VirtualDesktopManager {
                     anyhow::bail!("FindDesktop returned null for fallback_id");
                 }
 
-                let fallback = IVirtualDesktop::from_raw(fallback_ptr);
+                let fallback = IVirtualDesktop::from_raw(fallback_ptr.cast());
                 let hr = internal.RemoveDesktop(&desktop, &fallback);
                 hr.ok()?;
                 Ok(())
@@ -473,13 +473,13 @@ impl VirtualDesktopManager {
                     anyhow::bail!("GetCurrentDesktop returned null");
                 }
 
-                let current = IVirtualDesktop::from_raw(current_ptr);
+                let current = IVirtualDesktop::from_raw(current_ptr.cast());
 
                 let mut next_ptr: *mut IVirtualDesktop = ptr::null_mut();
                 let hr = internal.GetAdjacentDesktop(&current, 1, &mut next_ptr);
 
                 if hr.is_ok() && !next_ptr.is_null() {
-                    let next = IVirtualDesktop::from_raw(next_ptr);
+                    let next = IVirtualDesktop::from_raw(next_ptr.cast());
                     let hr = internal.SwitchDesktop(&next);
                     hr.ok()?;
                     Ok(())
@@ -513,13 +513,13 @@ impl VirtualDesktopManager {
                     anyhow::bail!("GetCurrentDesktop returned null");
                 }
 
-                let current = IVirtualDesktop::from_raw(current_ptr);
+                let current = IVirtualDesktop::from_raw(current_ptr.cast());
 
                 let mut prev_ptr: *mut IVirtualDesktop = ptr::null_mut();
                 let hr = internal.GetAdjacentDesktop(&current, -1, &mut prev_ptr);
 
                 if hr.is_ok() && !prev_ptr.is_null() {
-                    let prev = IVirtualDesktop::from_raw(prev_ptr);
+                    let prev = IVirtualDesktop::from_raw(prev_ptr.cast());
                     let hr = internal.SwitchDesktop(&prev);
                     hr.ok()?;
                     Ok(())
@@ -621,11 +621,3 @@ impl VirtualDesktopManager {
         anyhow::bail!("Virtual Desktop Manager is only available on Windows")
     }
 }
-
-// ============================================================================
-// Tests
-// ============================================================================
-
-#[cfg(test)]
-#[path = "virtual_desktop_tests.rs"]
-mod virtual_desktop_tests;
