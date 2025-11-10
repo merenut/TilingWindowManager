@@ -106,7 +106,7 @@ fn get_cursor_position() -> (i32, i32) {
 fn calculate_window_position(cursor_x: i32, cursor_y: i32) -> (i32, i32) {
     unsafe {
         use windows::Win32::Graphics::Gdi::GetMonitorInfoW;
-        
+
         // Get monitor info for the cursor position
         let point = POINT {
             x: cursor_x,
@@ -153,10 +153,12 @@ fn App() -> Element {
     let command_catalog = use_signal(|| CommandCatalog::new());
 
     // Initialize recent items
-    let recent_items = use_signal(|| RecentItems::new().unwrap_or_else(|e| {
-        error!("Failed to load recent items: {}", e);
-        RecentItems::new().unwrap()
-    }));
+    let recent_items = use_signal(|| {
+        RecentItems::new().unwrap_or_else(|e| {
+            error!("Failed to load recent items: {}", e);
+            RecentItems::new().unwrap()
+        })
+    });
 
     // Search query
     let mut query = use_signal(|| String::new());
@@ -262,11 +264,15 @@ fn App() -> Element {
         // Base: search section (94) + padding (20)
         let base_height = 114;
         // Each result: 60px, section header: 29px, footer: 41px
-        let header_height = if query.read().is_empty() && result_count > 0 { 29 } else { 0 };
+        let header_height = if query.read().is_empty() && result_count > 0 {
+            29
+        } else {
+            0
+        };
         let results_height = result_count.min(MAX_RESULTS) * 60;
         let footer_height = if is_scanning { 41 } else { 0 };
         let total_height = base_height + header_height + results_height + footer_height;
-        
+
         let _ = window.set_inner_size(dioxus::desktop::LogicalSize::new(
             WINDOW_WIDTH as u32,
             total_height as u32,

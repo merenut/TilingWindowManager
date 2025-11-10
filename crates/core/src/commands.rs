@@ -323,7 +323,7 @@ impl CommandExecutor {
         };
 
         let candidates = self.get_workspace_window_candidates(wm, current_window.hwnd());
-        
+
         if candidates.is_empty() {
             debug!("No other windows to focus");
             return Ok(());
@@ -332,10 +332,12 @@ impl CommandExecutor {
         if let Some(target_hwnd) =
             DirectionalFocus::find_window_in_direction(&current_rect, direction, &candidates)
         {
-            debug!("Focusing window {:?} in direction {:?}", target_hwnd, direction);
-            let target_window = win32::WindowHandle::from_hwnd(
-                windows::Win32::Foundation::HWND(target_hwnd as _)
+            debug!(
+                "Focusing window {:?} in direction {:?}",
+                target_hwnd, direction
             );
+            let target_window =
+                win32::WindowHandle::from_hwnd(windows::Win32::Foundation::HWND(target_hwnd as _));
             wm.focus_manager_mut().focus_window(&target_window)?;
         } else {
             debug!("No window found in direction {:?}", direction);
@@ -344,11 +346,16 @@ impl CommandExecutor {
         Ok(())
     }
 
-    fn get_current_window_and_rect(&self) -> Option<(crate::utils::win32::WindowHandle, crate::window_manager::Rect)> {
+    fn get_current_window_and_rect(
+        &self,
+    ) -> Option<(
+        crate::utils::win32::WindowHandle,
+        crate::window_manager::Rect,
+    )> {
         use crate::utils::win32;
 
         let current_window = win32::get_foreground_window()?;
-        
+
         let rect_raw = match current_window.get_rect() {
             Ok(r) => r,
             Err(e) => {
@@ -374,7 +381,7 @@ impl CommandExecutor {
     ) -> Vec<(isize, crate::window_manager::Rect)> {
         let workspace_id = wm.get_active_workspace();
         let workspace_trees = wm.get_workspace_trees(workspace_id);
-        
+
         if workspace_trees.is_empty() {
             warn!("No trees found for workspace {}", workspace_id);
             return Vec::new();
@@ -384,7 +391,7 @@ impl CommandExecutor {
         for (_, tree) in workspace_trees {
             windows.extend(tree.collect());
         }
-        
+
         windows
             .into_iter()
             .filter(|(hwnd, _)| hwnd.0 != 0 && *hwnd != exclude_hwnd)
@@ -447,7 +454,7 @@ impl CommandExecutor {
                 return Ok(());
             }
         };
-        
+
         let current_hwnd = current_window.hwnd();
         let candidates = self.get_workspace_window_candidates(wm, current_hwnd);
 
@@ -459,8 +466,11 @@ impl CommandExecutor {
         if let Some(target_hwnd_val) =
             DirectionalFocus::find_window_in_direction(&current_rect, direction, &candidates)
         {
-            debug!("Swapping window {:?} with {:?}", current_hwnd.0, target_hwnd_val);
-            
+            debug!(
+                "Swapping window {:?} with {:?}",
+                current_hwnd.0, target_hwnd_val
+            );
+
             // Note: This simplified implementation just retiles the workspace
             // A more sophisticated approach would manipulate the tree structure directly
             wm.retile_workspace(wm.get_active_workspace())?;
@@ -484,19 +494,19 @@ impl CommandExecutor {
                 return Ok(());
             }
         };
-        
+
         let current_hwnd = current_window.hwnd();
         let workspace_id = wm.get_active_workspace();
-        
+
         let windows = self.collect_all_workspace_windows(wm, workspace_id);
-        
+
         if windows.is_empty() {
             debug!("Workspace is empty");
             return Ok(());
         }
 
         let master_hwnd = windows[0].0;
-        
+
         if master_hwnd == current_hwnd {
             debug!("Window is already master");
             return Ok(());
@@ -512,7 +522,10 @@ impl CommandExecutor {
             return Ok(());
         }
 
-        debug!("Swapping window {:?} with master {:?}", current_hwnd.0, master_hwnd.0);
+        debug!(
+            "Swapping window {:?} with master {:?}",
+            current_hwnd.0, master_hwnd.0
+        );
 
         // Note: This simplified implementation just retiles the workspace
         wm.retile_workspace(workspace_id)?;
@@ -525,9 +538,12 @@ impl CommandExecutor {
         &self,
         wm: &WindowManager,
         workspace_id: usize,
-    ) -> Vec<(windows::Win32::Foundation::HWND, crate::window_manager::Rect)> {
+    ) -> Vec<(
+        windows::Win32::Foundation::HWND,
+        crate::window_manager::Rect,
+    )> {
         let workspace_trees = wm.get_workspace_trees(workspace_id);
-        
+
         if workspace_trees.is_empty() {
             warn!("No trees found for workspace {}", workspace_id);
             return Vec::new();
@@ -658,7 +674,7 @@ impl CommandExecutor {
             Some(window) => {
                 println!("Parent window: {}", window.hwnd().0);
                 window.hwnd().0
-            },
+            }
             None => {
                 println!("No parent window");
                 0 // No parent if no window is focused
@@ -683,7 +699,7 @@ impl CommandExecutor {
         };
 
         println!("Palette executable path: {}", palette_exe.display());
-        
+
         // Spawn the command palette process
         match Command::new(&palette_exe)
             .arg("--parent-hwnd")
